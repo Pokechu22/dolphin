@@ -262,6 +262,7 @@
     <ClInclude Include="Core\HW\EXI\EXI_DeviceIPL.h" />
     <ClInclude Include="Core\HW\EXI\EXI_DeviceMemoryCard.h" />
     <ClInclude Include="Core\HW\EXI\EXI_DeviceMic.h" />
+    <ClInclude Include="Core\HW\EXI\EXI_DeviceSD.h" />
     <ClInclude Include="Core\HW\EXI\EXI.h" />
     <ClInclude Include="Core\HW\GCKeyboard.h" />
     <ClInclude Include="Core\HW\GCKeyboardEmu.h" />
@@ -840,6 +841,7 @@
     <ClCompile Include="Core\HW\EXI\EXI_DeviceIPL.cpp" />
     <ClCompile Include="Core\HW\EXI\EXI_DeviceMemoryCard.cpp" />
     <ClCompile Include="Core\HW\EXI\EXI_DeviceMic.cpp" />
+    <ClCompile Include="Core\HW\EXI\EXI_DeviceSD.cpp" />
     <ClCompile Include="Core\HW\EXI\EXI.cpp" />
     <ClCompile Include="Core\HW\GCKeyboard.cpp" />
     <ClCompile Include="Core\HW\GCKeyboardEmu.cpp" />

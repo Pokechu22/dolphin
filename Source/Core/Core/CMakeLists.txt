@@ -213,6 +213,8 @@ add_library(core
   HW/EXI/EXI_DeviceMemoryCard.h
   HW/EXI/EXI_DeviceMic.cpp
   HW/EXI/EXI_DeviceMic.h
+  HW/EXI/EXI_DeviceSD.cpp
+  HW/EXI/EXI_DeviceSD.h
   HW/GCKeyboard.cpp
   HW/GCKeyboard.h
   HW/GCKeyboardEmu.cpp

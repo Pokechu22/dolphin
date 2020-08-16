@@ -463,6 +463,9 @@
     <ClCompile Include="HW\EXI\EXI_DeviceMic.cpp">
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
     </ClCompile>
+    <ClCompile Include="HW\EXI\EXI_DeviceSD.cpp">
+      <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
+    </ClCompile>
     <ClCompile Include="HW\EXI\BBA-TAP\TAP_Win32.cpp">
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
     </ClCompile>
@@ -1240,6 +1243,9 @@
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
     </ClInclude>
     <ClInclude Include="HW\EXI\EXI_DeviceMic.h">
+      <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="HW\EXI\EXI_DeviceSD.h">
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
     </ClInclude>
     <ClInclude Include="HW\EXI\BBA-TAP\TAP_Win32.h">

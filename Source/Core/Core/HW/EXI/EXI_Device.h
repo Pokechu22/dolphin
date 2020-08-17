@@ -35,6 +35,7 @@ enum class EXIDeviceType : int
   EthernetXLink,
   // Only used on Apple devices
   EthernetTapServer,
+  SD,
   None = 0xFF
 };
 

@@ -28,7 +28,7 @@ class Volume;
 
 namespace ExpansionInterface
 {
-enum TEXIDevices : int;
+enum class EXIDeviceType : int;
 }  // namespace ExpansionInterface
 
 namespace IOS::ES
@@ -225,7 +225,7 @@ struct SConfig
 
   std::string m_strGbaCartA;
   std::string m_strGbaCartB;
-  ExpansionInterface::TEXIDevices m_EXIDevice[3];
+  ExpansionInterface::EXIDeviceType m_EXIDevice[3];
   SerialInterface::SIDevices m_SIDevice[4];
 
   std::string m_bba_mac;

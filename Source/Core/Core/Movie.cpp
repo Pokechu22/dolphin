@@ -1378,13 +1378,13 @@ void SetGraphicsConfig()
 void GetSettings()
 {
   const bool slot_a_has_raw_memcard =
-      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDEVICE_MEMORYCARD;
+      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDeviceType::MemoryCard;
   const bool slot_a_has_gci_folder =
-      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDEVICE_MEMORYCARDFOLDER;
+      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDeviceType::MemoryCardFolder;
   const bool slot_b_has_raw_memcard =
-      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDEVICE_MEMORYCARD;
+      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDeviceType::MemoryCard;
   const bool slot_b_has_gci_folder =
-      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDEVICE_MEMORYCARDFOLDER;
+      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDeviceType::MemoryCardFolder;
 
   s_bSaveConfig = true;
   s_bNetPlay = NetPlay::IsNetPlayRunning();

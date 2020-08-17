@@ -86,28 +86,28 @@ void GameCubePane::CreateWidgets()
   // Add slot devices
 
   for (const auto& entry :
-       {std::make_pair(tr("<Nothing>"), ExpansionInterface::EXIDEVICE_NONE),
-        std::make_pair(tr("Dummy"), ExpansionInterface::EXIDEVICE_DUMMY),
-        std::make_pair(tr("Memory Card"), ExpansionInterface::EXIDEVICE_MEMORYCARD),
-        std::make_pair(tr("GCI Folder"), ExpansionInterface::EXIDEVICE_MEMORYCARDFOLDER),
-        std::make_pair(tr("USB Gecko"), ExpansionInterface::EXIDEVICE_GECKO),
-        std::make_pair(tr("Advance Game Port"), ExpansionInterface::EXIDEVICE_AGP),
-        std::make_pair(tr("Microphone"), ExpansionInterface::EXIDEVICE_MIC)})
+       {std::make_pair(tr("<Nothing>"), ExpansionInterface::EXIDeviceType::None),
+        std::make_pair(tr("Dummy"), ExpansionInterface::EXIDeviceType::Dummy),
+        std::make_pair(tr("Memory Card"), ExpansionInterface::EXIDeviceType::MemoryCard),
+        std::make_pair(tr("GCI Folder"), ExpansionInterface::EXIDeviceType::MemoryCardFolder),
+        std::make_pair(tr("USB Gecko"), ExpansionInterface::EXIDeviceType::Gecko),
+        std::make_pair(tr("Advance Game Port"), ExpansionInterface::EXIDeviceType::AGP),
+        std::make_pair(tr("Microphone"), ExpansionInterface::EXIDeviceType::Microphone)})
   {
-    m_slot_combos[0]->addItem(entry.first, entry.second);
-    m_slot_combos[1]->addItem(entry.first, entry.second);
+    m_slot_combos[0]->addItem(entry.first, static_cast<int>(entry.second));
+    m_slot_combos[1]->addItem(entry.first, static_cast<int>(entry.second));
   }
 
   // Add SP1 devices
 
   for (const auto& entry :
-       {std::make_pair(tr("<Nothing>"), ExpansionInterface::EXIDEVICE_NONE),
-        std::make_pair(tr("Dummy"), ExpansionInterface::EXIDEVICE_DUMMY),
-        std::make_pair(tr("Broadband Adapter (TAP)"), ExpansionInterface::EXIDEVICE_ETH),
+       {std::make_pair(tr("<Nothing>"), ExpansionInterface::EXIDeviceType::None),
+        std::make_pair(tr("Dummy"), ExpansionInterface::EXIDeviceType::Dummy),
+        std::make_pair(tr("Broadband Adapter (TAP)"), ExpansionInterface::EXIDeviceType::Ethernet),
         std::make_pair(tr("Broadband Adapter (XLink Kai)"),
-                       ExpansionInterface::EXIDEVICE_ETHXLINK)})
+                       ExpansionInterface::EXIDeviceType::EthernetXLink)})
   {
-    m_slot_combos[2]->addItem(entry.first, entry.second);
+    m_slot_combos[2]->addItem(entry.first, static_cast<int>(entry.second));
   }
 
   device_layout->addWidget(new QLabel(tr("Slot A:")), 0, 0);
@@ -148,20 +148,20 @@ void GameCubePane::ConnectWidgets()
 
 void GameCubePane::UpdateButton(int slot)
 {
-  const auto value = m_slot_combos[slot]->currentData().toInt();
+  const auto value = (ExpansionInterface::EXIDeviceType)m_slot_combos[slot]->currentData().toInt();
   bool has_config = false;
 
   switch (slot)
   {
   case SLOT_A_INDEX:
   case SLOT_B_INDEX:
-    has_config =
-        (value == ExpansionInterface::EXIDEVICE_MEMORYCARD ||
-         value == ExpansionInterface::EXIDEVICE_AGP || value == ExpansionInterface::EXIDEVICE_MIC);
+    has_config = (value == ExpansionInterface::EXIDeviceType::MemoryCard ||
+                  value == ExpansionInterface::EXIDeviceType::AGP ||
+                  value == ExpansionInterface::EXIDeviceType::Microphone);
     break;
   case SLOT_SP1_INDEX:
-    has_config = (value == ExpansionInterface::EXIDEVICE_ETH ||
-                  value == ExpansionInterface::EXIDEVICE_ETHXLINK);
+    has_config = (value == ExpansionInterface::EXIDeviceType::Ethernet ||
+                  value == ExpansionInterface::EXIDeviceType::EthernetXLink);
     break;
   }
 
@@ -173,19 +173,19 @@ void GameCubePane::OnConfigPressed(int slot)
   QString filter;
   bool memcard = false;
 
-  switch (m_slot_combos[slot]->currentData().toInt())
+  switch ((ExpansionInterface::EXIDeviceType)m_slot_combos[slot]->currentData().toInt())
   {
-  case ExpansionInterface::EXIDEVICE_MEMORYCARD:
+  case ExpansionInterface::EXIDeviceType::MemoryCard:
     filter = tr("GameCube Memory Cards (*.raw *.gcp)");
     memcard = true;
     break;
-  case ExpansionInterface::EXIDEVICE_AGP:
+  case ExpansionInterface::EXIDeviceType::AGP:
     filter = tr("Game Boy Advance Carts (*.gba)");
     break;
-  case ExpansionInterface::EXIDEVICE_MIC:
+  case ExpansionInterface::EXIDeviceType::Microphone:
     MappingWindow(this, MappingWindow::Type::MAPPING_GC_MICROPHONE, slot).exec();
     return;
-  case ExpansionInterface::EXIDEVICE_ETH:
+  case ExpansionInterface::EXIDeviceType::Ethernet:
   {
     bool ok;
     const auto new_mac = QInputDialog::getText(
@@ -197,7 +197,7 @@ void GameCubePane::OnConfigPressed(int slot)
       SConfig::GetInstance().m_bba_mac = new_mac.toStdString();
     return;
   }
-  case ExpansionInterface::EXIDEVICE_ETHXLINK:
+  case ExpansionInterface::EXIDeviceType::EthernetXLink:
   {
     bool ok;
     const auto new_dest = QInputDialog::getText(
@@ -242,7 +242,7 @@ void GameCubePane::OnConfigPressed(int slot)
 
     bool other_slot_memcard =
         m_slot_combos[slot == SLOT_A_INDEX ? SLOT_B_INDEX : SLOT_A_INDEX]->currentData().toInt() ==
-        ExpansionInterface::EXIDEVICE_MEMORYCARD;
+        (int)ExpansionInterface::EXIDeviceType::MemoryCard;
     if (other_slot_memcard)
     {
       QString path_b =
@@ -303,7 +303,8 @@ void GameCubePane::OnConfigPressed(int slot)
         // SlotB is on channel 1, slotA and SP1 are on 0
         slot,
         // The device enum to change to
-        memcard ? ExpansionInterface::EXIDEVICE_MEMORYCARD : ExpansionInterface::EXIDEVICE_AGP,
+        memcard ? ExpansionInterface::EXIDeviceType::MemoryCard :
+                  ExpansionInterface::EXIDeviceType::AGP,
         // SP1 is device 2, slots are device 0
         0);
   }
@@ -340,7 +341,7 @@ void GameCubePane::LoadSettings()
   {
     QSignalBlocker blocker(m_slot_combos[i]);
     m_slot_combos[i]->setCurrentIndex(
-        m_slot_combos[i]->findData(SConfig::GetInstance().m_EXIDevice[i]));
+        m_slot_combos[i]->findData((int)SConfig::GetInstance().m_EXIDevice[i]));
     UpdateButton(i);
   }
 }
@@ -359,7 +360,7 @@ void GameCubePane::SaveSettings()
 
   for (int i = 0; i < SLOT_COUNT; i++)
   {
-    const auto dev = ExpansionInterface::TEXIDevices(m_slot_combos[i]->currentData().toInt());
+    const auto dev = ExpansionInterface::EXIDeviceType(m_slot_combos[i]->currentData().toInt());
 
     if (Core::IsRunning() && SConfig::GetInstance().m_EXIDevice[i] != dev)
     {

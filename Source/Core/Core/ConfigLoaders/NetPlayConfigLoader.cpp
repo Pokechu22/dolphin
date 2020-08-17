@@ -35,9 +35,9 @@ public:
     layer->Set(Config::MAIN_DSP_HLE, m_settings.m_DSPHLE);
     layer->Set(Config::MAIN_OVERCLOCK_ENABLE, m_settings.m_OCEnable);
     layer->Set(Config::MAIN_OVERCLOCK, m_settings.m_OCFactor);
-    layer->Set(Config::MAIN_SLOT_A, static_cast<int>(m_settings.m_EXIDevice[0]));
-    layer->Set(Config::MAIN_SLOT_B, static_cast<int>(m_settings.m_EXIDevice[1]));
-    layer->Set(Config::MAIN_SERIAL_PORT_1, static_cast<int>(m_settings.m_EXIDevice[2]));
+    layer->Set(Config::MAIN_SLOT_A, m_settings.m_EXIDevice[0]);
+    layer->Set(Config::MAIN_SLOT_B, m_settings.m_EXIDevice[1]);
+    layer->Set(Config::MAIN_SERIAL_PORT_1, m_settings.m_EXIDevice[2]);
     layer->Set(Config::MAIN_WII_SD_CARD_WRITABLE, m_settings.m_WriteToMemcard);
     layer->Set(Config::MAIN_DSP_JIT, m_settings.m_DSPEnableJIT);
     layer->Set(Config::SYSCONF_PROGRESSIVE_SCAN, m_settings.m_ProgressiveScan);

@@ -493,9 +493,9 @@ void SConfig::LoadCoreSettings(IniFile& ini)
   core->Get("AudioStretchMaxLatency", &m_audio_stretch_max_latency, 80);
   core->Get("AgpCartAPath", &m_strGbaCartA);
   core->Get("AgpCartBPath", &m_strGbaCartB);
-  core->Get("SlotA", (int*)&m_EXIDevice[0], ExpansionInterface::EXIDEVICE_MEMORYCARDFOLDER);
-  core->Get("SlotB", (int*)&m_EXIDevice[1], ExpansionInterface::EXIDEVICE_NONE);
-  core->Get("SerialPort1", (int*)&m_EXIDevice[2], ExpansionInterface::EXIDEVICE_NONE);
+  core->Get("SlotA", &m_EXIDevice[0], ExpansionInterface::EXIDeviceType::MemoryCardFolder);
+  core->Get("SlotB", &m_EXIDevice[1], ExpansionInterface::EXIDeviceType::None);
+  core->Get("SerialPort1", &m_EXIDevice[2], ExpansionInterface::EXIDeviceType::None);
   core->Get("BBA_MAC", &m_bba_mac);
   core->Get("BBA_XLINK_IP", &m_bba_xlink_ip, "127.0.0.1");
   core->Get("BBA_XLINK_CHAT_OSD", &m_bba_xlink_chat_osd, true);

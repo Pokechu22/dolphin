@@ -445,12 +445,10 @@ void NetPlayDialog::OnStart()
   settings.m_CopyWiiSave = m_load_wii_action->isChecked();
   settings.m_OCEnable = Config::Get(Config::MAIN_OVERCLOCK_ENABLE);
   settings.m_OCFactor = Config::Get(Config::MAIN_OVERCLOCK);
-  settings.m_EXIDevice[0] =
-      static_cast<ExpansionInterface::TEXIDevices>(Config::Get(Config::MAIN_SLOT_A));
-  settings.m_EXIDevice[1] =
-      static_cast<ExpansionInterface::TEXIDevices>(Config::Get(Config::MAIN_SLOT_B));
+  settings.m_EXIDevice[0] = Config::Get(Config::MAIN_SLOT_A);
+  settings.m_EXIDevice[1] = Config::Get(Config::MAIN_SLOT_B);
   // There's no way the BBA is going to sync, disable it
-  settings.m_EXIDevice[2] = ExpansionInterface::EXIDEVICE_NONE;
+  settings.m_EXIDevice[2] = ExpansionInterface::EXIDeviceType::None;
   settings.m_EFBAccessEnable = Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE);
   settings.m_BBoxEnable = Config::Get(Config::GFX_HACK_BBOX_ENABLE);
   settings.m_ForceProgressive = Config::Get(Config::GFX_HACK_FORCE_PROGRESSIVE);

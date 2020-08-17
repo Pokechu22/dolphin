@@ -60,10 +60,11 @@ void CEXIMemoryCard::EventCompleteFindInstance(u64 userdata,
 {
   int card_index = (int)userdata;
   CEXIMemoryCard* pThis =
-      (CEXIMemoryCard*)ExpansionInterface::FindDevice(EXIDEVICE_MEMORYCARD, card_index);
+      (CEXIMemoryCard*)ExpansionInterface::FindDevice(EXIDeviceType::MemoryCard, card_index);
   if (pThis == nullptr)
   {
-    pThis = (CEXIMemoryCard*)ExpansionInterface::FindDevice(EXIDEVICE_MEMORYCARDFOLDER, card_index);
+    pThis = (CEXIMemoryCard*)ExpansionInterface::FindDevice(EXIDeviceType::MemoryCardFolder,
+                                                            card_index);
   }
   if (pThis)
   {
@@ -517,7 +518,7 @@ void CEXIMemoryCard::DoState(PointerWrap& p)
   }
 }
 
-IEXIDevice* CEXIMemoryCard::FindDevice(TEXIDevices device_type, int customIndex)
+IEXIDevice* CEXIMemoryCard::FindDevice(EXIDeviceType device_type, int customIndex)
 {
   if (device_type != m_device_type)
     return nullptr;

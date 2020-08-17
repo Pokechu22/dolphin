@@ -49,11 +49,12 @@ const Info<std::string> MAIN_GCI_FOLDER_B_PATH_OVERRIDE{
 const Info<bool> MAIN_GCI_FOLDER_CURRENT_GAME_ONLY{
     {System::Main, "Core", "GCIFolderCurrentGameOnly"}, false};
 const Info<bool> MAIN_CODE_SYNC_OVERRIDE{{System::Main, "Core", "CheatSyncOverride"}, false};
-const Info<int> MAIN_SLOT_A{{System::Main, "Core", "SlotA"},
-                            ExpansionInterface::EXIDEVICE_MEMORYCARDFOLDER};
-const Info<int> MAIN_SLOT_B{{System::Main, "Core", "SlotB"}, ExpansionInterface::EXIDEVICE_NONE};
-const Info<int> MAIN_SERIAL_PORT_1{{System::Main, "Core", "SerialPort1"},
-                                   ExpansionInterface::EXIDEVICE_NONE};
+const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_A{
+    {System::Main, "Core", "SlotA"}, ExpansionInterface::EXIDeviceType::MemoryCardFolder};
+const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_B{{System::Main, "Core", "SlotB"},
+                                                          ExpansionInterface::EXIDeviceType::None};
+const Info<ExpansionInterface::EXIDeviceType> MAIN_SERIAL_PORT_1{
+    {System::Main, "Core", "SerialPort1"}, ExpansionInterface::EXIDeviceType::None};
 const Info<std::string> MAIN_BBA_MAC{{System::Main, "Core", "BBA_MAC"}, ""};
 
 Info<u32> GetInfoForSIDevice(u32 channel)

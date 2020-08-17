@@ -18,6 +18,11 @@ namespace AudioCommon
 enum class DPL2Quality;
 }
 
+namespace ExpansionInterface
+{
+enum class EXIDeviceType : int;
+}  // namespace ExpansionInterface
+
 namespace Config
 {
 // Main.Core
@@ -49,9 +54,9 @@ extern const Info<std::string> MAIN_GCI_FOLDER_A_PATH_OVERRIDE;
 extern const Info<std::string> MAIN_GCI_FOLDER_B_PATH_OVERRIDE;
 extern const Info<bool> MAIN_CODE_SYNC_OVERRIDE;
 extern const Info<bool> MAIN_GCI_FOLDER_CURRENT_GAME_ONLY;
-extern const Info<int> MAIN_SLOT_A;
-extern const Info<int> MAIN_SLOT_B;
-extern const Info<int> MAIN_SERIAL_PORT_1;
+extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_A;
+extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_B;
+extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SERIAL_PORT_1;
 extern const Info<std::string> MAIN_BBA_MAC;
 Info<u32> GetInfoForSIDevice(u32 channel);
 Info<bool> GetInfoForAdapterRumble(u32 channel);

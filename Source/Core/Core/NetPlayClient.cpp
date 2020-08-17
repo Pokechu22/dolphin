@@ -649,7 +649,7 @@ unsigned int NetPlayClient::OnData(sf::Packet& packet)
       {
         int tmp;
         packet >> tmp;
-        device = static_cast<ExpansionInterface::TEXIDevices>(tmp);
+        device = static_cast<ExpansionInterface::EXIDeviceType>(tmp);
       }
 
       packet >> m_net_settings.m_EFBAccessEnable;

@@ -33,6 +33,7 @@ enum class EXIDeviceType : int
   MemoryCardFolder,
   AGP,
   EthernetXLink,
+  SD,
   None = 0xFF
 };
 

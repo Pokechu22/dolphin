@@ -15,6 +15,7 @@
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/EXI/EXI_DeviceMemoryCard.h"
 #include "Core/HW/EXI/EXI_DeviceMic.h"
+#include "Core/HW/EXI/EXI_DeviceSD.h"
 #include "Core/HW/Memmap.h"
 
 namespace ExpansionInterface
@@ -147,6 +148,9 @@ std::unique_ptr<IEXIDevice> EXIDevice_Create(const EXIDeviceType device_type, co
   case EXIDeviceType::AGP:
     result = std::make_unique<CEXIAgp>(channel_num);
     break;
+
+  case EXIDeviceType::SD:
+    result = std::make_unique<CEXISD>();
 
   case EXIDeviceType::AMBaseboard:
   case EXIDeviceType::None:

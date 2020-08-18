@@ -36,7 +36,7 @@ struct SPatch
 };
 
 // clang-format off
-constexpr std::array<SPatch, 23> OSPatches{{
+constexpr std::array<SPatch, 24> OSPatches{{
     // Placeholder, OSPatches[0] is the "non-existent function" index
     {"FAKE_TO_SKIP_0",               HLE_Misc::UnimplementedFunction,       HookType::Replace, HookFlag::Generic},
 
@@ -55,6 +55,7 @@ constexpr std::array<SPatch, 23> OSPatches{{
     {"__DSP_debug_printf",           HLE_OS::HLE_GeneralDebugPrint,         HookType::Start,   HookFlag::Debug},
     {"vprintf",                      HLE_OS::HLE_GeneralDebugVPrint,        HookType::Start,   HookFlag::Debug},
     {"printf",                       HLE_OS::HLE_GeneralDebugPrint,         HookType::Start,   HookFlag::Debug},
+    {"kprintf",                      HLE_OS::HLE_GeneralDebugPrint,         HookType::Start,   HookFlag::Debug},
     {"vdprintf",                     HLE_OS::HLE_LogVDPrint,                HookType::Start,   HookFlag::Debug},
     {"dprintf",                      HLE_OS::HLE_LogDPrint,                 HookType::Start,   HookFlag::Debug},
     {"vfprintf",                     HLE_OS::HLE_LogVFPrint,                HookType::Start,   HookFlag::Debug},

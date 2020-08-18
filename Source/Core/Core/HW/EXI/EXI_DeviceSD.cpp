@@ -38,6 +38,11 @@ void CEXISD::DMARead(u32 address, u32 size)
            size, address);
 }
 
+void CEXISD::SetCS(int cs)
+{
+  INFO_LOG(EXPANSIONINTERFACE, "EXI SD SetCS: %d", cs);
+}
+
 bool CEXISD::IsPresent() const
 {
   return true;

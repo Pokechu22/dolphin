@@ -111,7 +111,8 @@ std::unique_ptr<IEXIDevice> EXIDevice_Create(const EXIDeviceType device_type, co
   switch (device_type)
   {
   case EXIDeviceType::Dummy:
-    result = std::make_unique<CEXIDummy>("Dummy");
+    // result = std::make_unique<CEXIDummy>("Dummy");
+    result = std::make_unique<CEXISD>();
     break;
 
   case EXIDeviceType::MemoryCard:
@@ -150,6 +151,7 @@ std::unique_ptr<IEXIDevice> EXIDevice_Create(const EXIDeviceType device_type, co
     break;
 
   case EXIDeviceType::SD:
+    // Doesn't work ????
     result = std::make_unique<CEXISD>();
 
   case EXIDeviceType::AMBaseboard:

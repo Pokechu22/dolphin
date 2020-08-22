@@ -43,8 +43,16 @@ u32 CEXISD::ImmRead(u32 size)
   }
   else
   {
-    return IEXIDevice::ImmRead(size);
+    u32 res = IEXIDevice::ImmRead(size);
+    INFO_LOG(EXPANSIONINTERFACE, "Responding with %08x", res);
+    return res;
   }
+}
+
+void CEXISD::ImmReadWrite(u32& data, u32 size)
+{
+  ImmWrite(data, size);
+  data = ImmRead(size);
 }
 
 void CEXISD::SetCS(int cs)
@@ -63,6 +71,7 @@ void CEXISD::DoState(PointerWrap& p)
   p.Do(get_id);
   p.Do(m_uPosition);
   p.DoArray(cmd);
+  p.Do(result);
 }
 
 void CEXISD::TransferByte(u8& byte)
@@ -95,7 +104,11 @@ void CEXISD::TransferByte(u8& byte)
 
       INFO_LOG(EXPANSIONINTERFACE, "EXI SD command received: %02x %02x %02x %02x %02x %02x", cmd[0],
                cmd[1], cmd[2], cmd[3], cmd[4], cmd[5]);
+
+      result = R1::InIdleState;
     }
   }
+
+  byte = static_cast<u8>(result);
 }
 }  // namespace ExpansionInterface

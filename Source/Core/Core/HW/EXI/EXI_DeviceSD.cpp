@@ -476,7 +476,7 @@ u8 CEXISD::ReadForBlockRead()
     {
       INFO_LOG(EXPANSIONINTERFACE, "SD read succeeded at %08" PRIx64, address);
       block_position = 0;
-      block_state = BlockState::Block;
+      block_state = BlockState::Token;
       block_crc = Common::HashCrc16(block_buffer);
     }
 
@@ -487,9 +487,11 @@ u8 CEXISD::ReadForBlockRead()
     // A bit awkward of a setup; a data error token is only read on an actual error.
     // For now only use the generic error, not e.g. out of bounds
     // (which can be handled in the main response... why are there 2 ways?)
-    state = State::ReadyForCommand;
-    block_state = BlockState::Nothing;
-    return DATA_ERROR_ERROR;
+    //state = State::ReadyForCommand;
+    //block_state = BlockState::Nothing;
+    //return DATA_ERROR_ERROR;
+    block_state = BlockState::Block;
+    return START_BLOCK;
   case BlockState::Block:
   {
     u8 result = block_buffer[block_position++];
@@ -523,7 +525,7 @@ u8 CEXISD::ReadForBlockRead()
       {
         INFO_LOG(EXPANSIONINTERFACE, "SD read succeeded at %08" PRIx64, address);
         block_position = 0;
-        block_state = BlockState::Block;
+        block_state = BlockState::Token;
         block_crc = Common::HashCrc16(block_buffer);
       }
     }
@@ -558,6 +560,7 @@ void CEXISD::WriteForBlockRead(u8 byte)
     {
       INFO_LOG(EXPANSIONINTERFACE,
                "Assuming stop transmission; changing to single block read to finish");
+      state = State::SingleBlockRead;
       // JANK, but I think this will work right
       response.push_back(0);  // R1 - for later
     }

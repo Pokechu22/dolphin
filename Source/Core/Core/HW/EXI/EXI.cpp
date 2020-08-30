@@ -65,6 +65,38 @@ void AddMemoryCards(int i)
 }
 }  // namespace
 
+u8 SlotToEXIChannel(Slot slot)
+{
+  switch (slot)
+  {
+  case Slot::A:
+    return 0;
+  case Slot::B:
+    return 1;
+  case Slot::SP1:
+    return 0;
+  default:
+    PanicAlert("Unhandled slot %d", static_cast<int>(slot));
+    return 0;
+  }
+}
+
+u8 SlotToEXIDevice(Slot slot)
+{
+  switch (slot)
+  {
+  case Slot::A:
+    return 0;
+  case Slot::B:
+    return 0;
+  case Slot::SP1:
+    return 2;
+  default:
+    PanicAlert("Unhandled slot %d", static_cast<int>(slot));
+    return 0;
+  }
+}
+
 void Init()
 {
   if (!g_SRAM_netplay_initialized)

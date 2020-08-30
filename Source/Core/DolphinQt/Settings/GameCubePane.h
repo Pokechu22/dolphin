@@ -5,12 +5,16 @@
 #pragma once
 
 #include <QWidget>
-#include <initializer_list>
 #include <unordered_map>
 
 class QCheckBox;
 class QComboBox;
 class QPushButton;
+
+namespace ExpansionInterface
+{
+enum class Slot : int;
+}
 
 class GameCubePane : public QWidget
 {
@@ -19,29 +23,18 @@ public:
   explicit GameCubePane();
 
 private:
-  enum class SlotIndex
-  {
-    A,
-    B,
-    SP1,
-  };
-  static constexpr auto SLOTS = {SlotIndex::A, SlotIndex::B, SlotIndex::SP1};
-
-  u8 SlotToEXIChannel(SlotIndex slot);
-  u8 SlotToEXIDevice(SlotIndex slot);
-
   void CreateWidgets();
   void ConnectWidgets();
 
   void LoadSettings();
   void SaveSettings();
 
-  void UpdateButton(SlotIndex slot);
-  void OnConfigPressed(SlotIndex slot);
+  void UpdateButton(ExpansionInterface::Slot slot);
+  void OnConfigPressed(ExpansionInterface::Slot slot);
 
   QCheckBox* m_skip_main_menu;
   QComboBox* m_language_combo;
 
-  std::unordered_map<SlotIndex, QPushButton*> m_slot_buttons{};
-  std::unordered_map<SlotIndex, QComboBox*> m_slot_combos{};
+  std::unordered_map<ExpansionInterface::Slot, QPushButton*> m_slot_buttons{};
+  std::unordered_map<ExpansionInterface::Slot, QComboBox*> m_slot_combos{};
 };

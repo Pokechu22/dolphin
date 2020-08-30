@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <initializer_list>
+
 #include "Common/CommonTypes.h"
 #include "Core/CoreTiming.h"
 
@@ -29,6 +31,17 @@ enum
   MAX_MEMORYCARD_SLOTS = 2,
   MAX_EXI_CHANNELS = 3
 };
+
+enum class Slot : int
+{
+  A,
+  B,
+  SP1,
+};
+static constexpr auto SLOTS = {Slot::A, Slot::B, Slot::SP1};
+
+u8 SlotToEXIChannel(Slot slot);
+u8 SlotToEXIDevice(Slot slot);
 
 void Init();
 void Shutdown();

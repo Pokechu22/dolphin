@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <array>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <fmt/format.h>
 
@@ -69,7 +71,7 @@ public:
   bool bSetVolume;
   std::array<bool, MAX_BBMOTES> bSetWiimoteSource;
   std::array<bool, SerialInterface::MAX_SI_CHANNELS> bSetPads;
-  std::array<bool, ExpansionInterface::MAX_EXI_CHANNELS> bSetEXIDevice;
+  std::unordered_set<ExpansionInterface::Slot> bSetEXIDevice;
 
 private:
   bool valid;
@@ -101,7 +103,7 @@ private:
   std::string m_strGPUDeterminismMode;
   std::array<WiimoteSource, MAX_BBMOTES> iWiimoteSource;
   std::array<SerialInterface::SIDevices, SerialInterface::MAX_SI_CHANNELS> Pads;
-  std::array<ExpansionInterface::EXIDeviceType, ExpansionInterface::MAX_EXI_CHANNELS> m_EXIDevice;
+  std::unordered_map<ExpansionInterface::Slot, ExpansionInterface::EXIDeviceType> m_EXIDevice;
 };
 
 void ConfigCache::SaveConfig(const SConfig& config)
@@ -138,13 +140,13 @@ void ConfigCache::SaveConfig(const SConfig& config)
     iWiimoteSource[i] = WiimoteCommon::GetSource(i);
 
   std::copy(std::begin(config.m_SIDevice), std::end(config.m_SIDevice), std::begin(Pads));
-  std::copy(std::begin(config.m_EXIDevice), std::end(config.m_EXIDevice), std::begin(m_EXIDevice));
+  m_EXIDevice = config.m_EXIDevice;
 
   bSetEmulationSpeed = false;
   bSetVolume = false;
   bSetWiimoteSource.fill(false);
   bSetPads.fill(false);
-  bSetEXIDevice.fill(false);
+  bSetEXIDevice.clear();
 }
 
 void ConfigCache::RestoreConfig(SConfig* config)
@@ -197,10 +199,9 @@ void ConfigCache::RestoreConfig(SConfig* config)
   if (bSetEmulationSpeed)
     config->m_EmulationSpeed = m_EmulationSpeed;
 
-  for (unsigned int i = 0; i < ExpansionInterface::MAX_EXI_CHANNELS; ++i)
+  for (auto slot : bSetEXIDevice)
   {
-    if (bSetEXIDevice[i])
-      config->m_EXIDevice[i] = m_EXIDevice[i];
+    config->m_EXIDevice[slot] = m_EXIDevice[slot];
   }
 
   config->sBackend = sBackend;
@@ -336,12 +337,13 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     StartUp.bSyncGPU = Config::Get(Config::MAIN_SYNC_GPU);
     if (!StartUp.bWii)
       StartUp.SelectedLanguage = Config::Get(Config::MAIN_GC_LANGUAGE);
-    for (int i = 0; i < 2; ++i)
+    for (auto slot : ExpansionInterface::MEMCARD_SLOTS)
     {
-      if (Movie::IsUsingMemcard(i) && Movie::IsStartingFromClearSave() && !StartUp.bWii)
+      if (Movie::IsUsingMemcard(slot) && Movie::IsStartingFromClearSave() && !StartUp.bWii)
       {
         const auto raw_path =
-            File::GetUserPath(D_GCUSER_IDX) + fmt::format("Movie{}.raw", (i == 0) ? 'A' : 'B');
+            File::GetUserPath(D_GCUSER_IDX) +
+            fmt::format("Movie{}.raw", (slot == ExpansionInterface::Slot::A) ? 'A' : 'B');
         if (File::Exists(raw_path))
           File::Delete(raw_path);
 
@@ -367,12 +369,8 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     StartUp.m_DSPEnableJIT = netplay_settings.m_DSPEnableJIT;
     StartUp.m_OCEnable = netplay_settings.m_OCEnable;
     StartUp.m_OCFactor = netplay_settings.m_OCFactor;
-    StartUp.m_EXIDevice[0] = netplay_settings.m_EXIDevice[0];
-    StartUp.m_EXIDevice[1] = netplay_settings.m_EXIDevice[1];
-    StartUp.m_EXIDevice[2] = netplay_settings.m_EXIDevice[2];
-    config_cache.bSetEXIDevice[0] = true;
-    config_cache.bSetEXIDevice[1] = true;
-    config_cache.bSetEXIDevice[2] = true;
+    StartUp.m_EXIDevice = netplay_settings.m_EXIDevice;
+    config_cache.bSetEXIDevice.insert(ExpansionInterface::SLOTS);
     StartUp.bFPRF = netplay_settings.m_FPRF;
     StartUp.bAccurateNaNs = netplay_settings.m_AccurateNaNs;
     StartUp.bDisableICache = netplay_settings.m_DisableICache;

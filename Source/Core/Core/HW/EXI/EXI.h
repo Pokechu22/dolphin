@@ -28,7 +28,6 @@ enum class EXIDeviceType : int;
 
 enum
 {
-  MAX_MEMORYCARD_SLOTS = 2,
   MAX_EXI_CHANNELS = 3
 };
 
@@ -39,6 +38,7 @@ enum class Slot : int
   SP1,
 };
 static constexpr auto SLOTS = {Slot::A, Slot::B, Slot::SP1};
+static constexpr auto MEMCARD_SLOTS = {Slot::A, Slot::B};
 
 u8 SlotToEXIChannel(Slot slot);
 u8 SlotToEXIDevice(Slot slot);

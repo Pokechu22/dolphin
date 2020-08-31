@@ -38,6 +38,7 @@
 #include "Core/Config/NetplaySettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/GeckoCode.h"
+#include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
@@ -671,11 +672,11 @@ unsigned int NetPlayClient::OnData(sf::Packet& packet)
       packet >> m_net_settings.m_OCEnable;
       packet >> m_net_settings.m_OCFactor;
 
-      for (auto& device : m_net_settings.m_EXIDevice)
+      for (auto slot : ExpansionInterface::SLOTS)
       {
         int tmp;
         packet >> tmp;
-        device = static_cast<ExpansionInterface::EXIDeviceType>(tmp);
+        m_net_settings.m_EXIDevice[slot] = static_cast<ExpansionInterface::EXIDeviceType>(tmp);
       }
 
       for (u32& value : m_net_settings.m_SYSCONFSettings)

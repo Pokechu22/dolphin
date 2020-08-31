@@ -18,6 +18,11 @@ struct BootParameters;
 struct GCPadStatus;
 class PointerWrap;
 
+namespace ExpansionInterface
+{
+enum class Slot : int;
+}
+
 namespace WiimoteCommon
 {
 class DataReportBuilder;
@@ -156,7 +161,7 @@ void SetReset(bool reset);
 
 bool IsConfigSaved();
 bool IsStartingFromClearSave();
-bool IsUsingMemcard(int memcard);
+bool IsUsingMemcard(ExpansionInterface::Slot memcard);
 void SetGraphicsConfig();
 bool IsNetPlayRecording();
 

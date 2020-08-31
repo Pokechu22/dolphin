@@ -44,6 +44,7 @@
 #include "Core/DSP/DSPCore.h"
 #include "Core/HW/CPU.h"
 #include "Core/HW/DVD/DVDInterface.h"
+#include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/EXI/EXI_DeviceMemoryCard.h"
 #include "Core/HW/ProcessorInterface.h"
@@ -410,9 +411,17 @@ bool IsStartingFromClearSave()
   return s_bClearSave;
 }
 
-bool IsUsingMemcard(int memcard)
+bool IsUsingMemcard(ExpansionInterface::Slot memcard)
 {
-  return (s_memcards & (1 << memcard)) != 0;
+  switch (memcard)
+  {
+  case ExpansionInterface::Slot::A:
+    return (s_memcards & 1) != 0;
+  case ExpansionInterface::Slot::B:
+    return (s_memcards & 2) != 0;
+  default:
+    return false;
+  }
 }
 
 bool IsNetPlayRecording()
@@ -1376,13 +1385,17 @@ void SetGraphicsConfig()
 void GetSettings()
 {
   const bool slot_a_has_raw_memcard =
-      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDeviceType::MemoryCard;
+      SConfig::GetInstance().m_EXIDevice[ExpansionInterface::Slot::A] ==
+      ExpansionInterface::EXIDeviceType::MemoryCard;
   const bool slot_a_has_gci_folder =
-      SConfig::GetInstance().m_EXIDevice[0] == ExpansionInterface::EXIDeviceType::MemoryCardFolder;
+      SConfig::GetInstance().m_EXIDevice[ExpansionInterface::Slot::A] ==
+      ExpansionInterface::EXIDeviceType::MemoryCardFolder;
   const bool slot_b_has_raw_memcard =
-      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDeviceType::MemoryCard;
+      SConfig::GetInstance().m_EXIDevice[ExpansionInterface::Slot::B] ==
+      ExpansionInterface::EXIDeviceType::MemoryCard;
   const bool slot_b_has_gci_folder =
-      SConfig::GetInstance().m_EXIDevice[1] == ExpansionInterface::EXIDeviceType::MemoryCardFolder;
+      SConfig::GetInstance().m_EXIDevice[ExpansionInterface::Slot::B] ==
+      ExpansionInterface::EXIDeviceType::MemoryCardFolder;
 
   s_bSaveConfig = true;
   s_bNetPlay = NetPlay::IsNetPlayRunning();

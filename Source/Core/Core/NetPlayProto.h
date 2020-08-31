@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <unordered_map>
 #include <vector>
 
 #include "Common/CommonTypes.h"
@@ -15,6 +16,12 @@ namespace DiscIO
 {
 enum class Region;
 }
+
+namespace ExpansionInterface
+{
+enum class Slot : int;
+}
+
 namespace IOS::HLE::FS
 {
 class FileSystem;
@@ -44,7 +51,7 @@ struct NetSettings
   bool m_CopyWiiSave;
   bool m_OCEnable;
   float m_OCFactor;
-  std::array<ExpansionInterface::EXIDeviceType, 3> m_EXIDevice;
+  std::unordered_map<ExpansionInterface::Slot, ExpansionInterface::EXIDeviceType> m_EXIDevice;
 
   std::array<u32, Config::SYSCONF_SETTINGS.size()> m_SYSCONFSettings;
 

@@ -39,14 +39,14 @@ static void UpdateInterruptsCallback(u64 userdata, s64 cycles_late);
 
 namespace
 {
-void AddMemoryCards(int i)
+void AddMemoryCards(Slot slot)
 {
   EXIDeviceType memorycard_device;
   if (Movie::IsPlayingInput() && Movie::IsConfigSaved())
   {
-    if (Movie::IsUsingMemcard(i))
+    if (Movie::IsUsingMemcard(slot))
     {
-      if (SConfig::GetInstance().m_EXIDevice[i] == EXIDeviceType::MemoryCardFolder)
+      if (SConfig::GetInstance().m_EXIDevice[slot] == EXIDeviceType::MemoryCardFolder)
         memorycard_device = EXIDeviceType::MemoryCardFolder;
       else
         memorycard_device = EXIDeviceType::MemoryCard;
@@ -58,10 +58,10 @@ void AddMemoryCards(int i)
   }
   else
   {
-    memorycard_device = SConfig::GetInstance().m_EXIDevice[i];
+    memorycard_device = SConfig::GetInstance().m_EXIDevice[slot];
   }
 
-  g_Channels[i]->AddDevice(memorycard_device, 0);
+  g_Channels[SlotToEXIChannel(slot)]->AddDevice(memorycard_device, 0);
 }
 }  // namespace
 
@@ -129,11 +129,11 @@ void Init()
     }
   }
 
-  for (int i = 0; i < MAX_MEMORYCARD_SLOTS; i++)
-    AddMemoryCards(i);
+  for (auto slot : MEMCARD_SLOTS)
+    AddMemoryCards(slot);
 
   g_Channels[0]->AddDevice(EXIDeviceType::MaskROM, 1);
-  g_Channels[0]->AddDevice(SConfig::GetInstance().m_EXIDevice[2], 2);  // Serial Port 1
+  g_Channels[0]->AddDevice(SConfig::GetInstance().m_EXIDevice[Slot::SP1], SlotToEXIChannel(Slot::SP1));
   g_Channels[2]->AddDevice(EXIDeviceType::AD16, 0);
 
   changeDevice = CoreTiming::RegisterEvent("ChangeEXIDevice", ChangeDeviceCallback);

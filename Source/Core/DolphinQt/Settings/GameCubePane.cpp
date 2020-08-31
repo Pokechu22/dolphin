@@ -343,8 +343,8 @@ void GameCubePane::LoadSettings()
   for (auto slot : ExpansionInterface::SLOTS)
   {
     QSignalBlocker blocker(m_slot_combos[slot]);
-    m_slot_combos[slot]->setCurrentIndex(m_slot_combos[slot]->findData(
-        (int)SConfig::GetInstance().m_EXIDevice[static_cast<int>(slot)]));
+    m_slot_combos[slot]->setCurrentIndex(
+        m_slot_combos[slot]->findData(static_cast<int>(SConfig::GetInstance().m_EXIDevice[slot])));
     UpdateButton(slot);
   }
 }
@@ -366,12 +366,12 @@ void GameCubePane::SaveSettings()
     const auto dev =
         static_cast<ExpansionInterface::EXIDeviceType>(m_slot_combos[slot]->currentData().toInt());
 
-    if (Core::IsRunning() && SConfig::GetInstance().m_EXIDevice[static_cast<int>(slot)] != dev)
+    if (Core::IsRunning() && SConfig::GetInstance().m_EXIDevice[slot] != dev)
     {
       ExpansionInterface::ChangeDevice(SlotToEXIChannel(slot), dev, SlotToEXIDevice(slot));
     }
 
-    SConfig::GetInstance().m_EXIDevice[static_cast<int>(slot)] = dev;
+    SConfig::GetInstance().m_EXIDevice[slot] = dev;
     switch (slot)
     {
     case ExpansionInterface::Slot::A:

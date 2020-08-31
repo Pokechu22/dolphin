@@ -161,10 +161,11 @@ CEXIMemoryCard::GetGCIFolderPath(int card_index, AllowMovieFolder allow_movie_fo
 
   std::string path = File::GetUserPath(D_GCUSER_IDX);
 
-  const bool use_movie_folder = allow_movie_folder == AllowMovieFolder::Yes &&
-                                Movie::IsPlayingInput() && Movie::IsConfigSaved() &&
-                                Movie::IsUsingMemcard(card_index) &&
-                                Movie::IsStartingFromClearSave();
+  const bool use_movie_folder =
+      allow_movie_folder == AllowMovieFolder::Yes && Movie::IsPlayingInput() &&
+      Movie::IsConfigSaved() &&
+      Movie::IsUsingMemcard(static_cast<ExpansionInterface::Slot>(card_index)) &&
+      Movie::IsStartingFromClearSave();
 
   if (use_movie_folder)
     path += "Movie" DIR_SEP;
@@ -228,7 +229,8 @@ void CEXIMemoryCard::SetupRawMemcard(u16 size_mb)
   const bool is_slot_a = m_card_index == 0;
   std::string filename = is_slot_a ? Config::Get(Config::MAIN_MEMCARD_A_PATH) :
                                      Config::Get(Config::MAIN_MEMCARD_B_PATH);
-  if (Movie::IsPlayingInput() && Movie::IsConfigSaved() && Movie::IsUsingMemcard(m_card_index) &&
+  if (Movie::IsPlayingInput() && Movie::IsConfigSaved() &&
+      Movie::IsUsingMemcard(static_cast<ExpansionInterface::Slot>(m_card_index)) &&
       Movie::IsStartingFromClearSave())
     filename = File::GetUserPath(D_GCUSER_IDX) + fmt::format("Movie{}.raw", is_slot_a ? 'A' : 'B');
 
@@ -524,7 +526,7 @@ void CEXIMemoryCard::DoState(PointerWrap& p)
   }
 }
 
-IEXIDevice * CEXIMemoryCard::FindDevice(EXIDeviceType device_type, int custom_index)
+IEXIDevice* CEXIMemoryCard::FindDevice(EXIDeviceType device_type, int custom_index)
 {
   if (device_type != m_device_type)
     return nullptr;

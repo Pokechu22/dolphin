@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,7 @@ class Volume;
 
 namespace ExpansionInterface
 {
+enum class Slot : int;
 enum class EXIDeviceType : int;
 }  // namespace ExpansionInterface
 
@@ -225,7 +227,7 @@ struct SConfig
 
   std::string m_strGbaCartA;
   std::string m_strGbaCartB;
-  ExpansionInterface::EXIDeviceType m_EXIDevice[3];
+  std::unordered_map<ExpansionInterface::Slot, ExpansionInterface::EXIDeviceType> m_EXIDevice;
   SerialInterface::SIDevices m_SIDevice[4];
 
   std::string m_bba_mac;

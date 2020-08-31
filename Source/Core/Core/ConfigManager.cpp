@@ -42,6 +42,7 @@
 #include "Core/FifoPlayer/FifoDataFile.h"
 #include "Core/HLE/HLE.h"
 #include "Core/HW/DVD/DVDInterface.h"
+#include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
@@ -225,9 +226,9 @@ void SConfig::SaveCoreSettings(IniFile& ini)
   core->Set("AudioStretchMaxLatency", m_audio_stretch_max_latency);
   core->Set("AgpCartAPath", m_strGbaCartA);
   core->Set("AgpCartBPath", m_strGbaCartB);
-  core->Set("SlotA", m_EXIDevice[0]);
-  core->Set("SlotB", m_EXIDevice[1]);
-  core->Set("SerialPort1", m_EXIDevice[2]);
+  core->Set("SlotA", m_EXIDevice[ExpansionInterface::Slot::A]);
+  core->Set("SlotB", m_EXIDevice[ExpansionInterface::Slot::B]);
+  core->Set("SerialPort1", m_EXIDevice[ExpansionInterface::Slot::SP1]);
   core->Set("BBA_MAC", m_bba_mac);
   core->Set("BBA_XLINK_IP", m_bba_xlink_ip);
   core->Set("BBA_XLINK_CHAT_OSD", m_bba_xlink_chat_osd);
@@ -484,9 +485,12 @@ void SConfig::LoadCoreSettings(IniFile& ini)
   core->Get("AudioStretchMaxLatency", &m_audio_stretch_max_latency, 80);
   core->Get("AgpCartAPath", &m_strGbaCartA);
   core->Get("AgpCartBPath", &m_strGbaCartB);
-  core->Get("SlotA", &m_EXIDevice[0], ExpansionInterface::EXIDeviceType::MemoryCardFolder);
-  core->Get("SlotB", &m_EXIDevice[1], ExpansionInterface::EXIDeviceType::None);
-  core->Get("SerialPort1", &m_EXIDevice[2], ExpansionInterface::EXIDeviceType::None);
+  core->Get("SlotA", &m_EXIDevice[ExpansionInterface::Slot::A],
+            ExpansionInterface::EXIDeviceType::MemoryCardFolder);
+  core->Get("SlotB", &m_EXIDevice[ExpansionInterface::Slot::B],
+            ExpansionInterface::EXIDeviceType::None);
+  core->Get("SerialPort1", &m_EXIDevice[ExpansionInterface::Slot::SP1],
+            ExpansionInterface::EXIDeviceType::None);
   core->Get("BBA_MAC", &m_bba_mac);
   core->Get("BBA_XLINK_IP", &m_bba_xlink_ip, "127.0.0.1");
   core->Get("BBA_XLINK_CHAT_OSD", &m_bba_xlink_chat_osd, true);

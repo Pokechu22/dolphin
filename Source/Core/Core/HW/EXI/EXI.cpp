@@ -61,7 +61,7 @@ void AddMemoryCards(Slot slot)
     memorycard_device = SConfig::GetInstance().m_EXIDevice[slot];
   }
 
-  g_Channels[SlotToEXIChannel(slot)]->AddDevice(memorycard_device, 0);
+  g_Channels[SlotToEXIChannel(slot)]->AddDevice(memorycard_device, SlotToEXIDevice(slot));
 }
 }  // namespace
 
@@ -133,7 +133,8 @@ void Init()
     AddMemoryCards(slot);
 
   g_Channels[0]->AddDevice(EXIDeviceType::MaskROM, 1);
-  g_Channels[0]->AddDevice(SConfig::GetInstance().m_EXIDevice[Slot::SP1], SlotToEXIChannel(Slot::SP1));
+  g_Channels[SlotToEXIChannel(Slot::SP1)]->AddDevice(SConfig::GetInstance().m_EXIDevice[Slot::SP1],
+                                                     SlotToEXIDevice(Slot::SP1));
   g_Channels[2]->AddDevice(EXIDeviceType::AD16, 0);
 
   changeDevice = CoreTiming::RegisterEvent("ChangeEXIDevice", ChangeDeviceCallback);

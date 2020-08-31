@@ -75,6 +75,8 @@ u8 SlotToEXIChannel(Slot slot)
     return 1;
   case Slot::SP1:
     return 0;
+  case Slot::SP2:
+    return 2;
   default:
     PanicAlert("Unhandled slot %d", static_cast<int>(slot));
     return 0;
@@ -91,6 +93,8 @@ u8 SlotToEXIDevice(Slot slot)
     return 0;
   case Slot::SP1:
     return 2;
+  case Slot::SP2:
+    return 0;
   default:
     PanicAlert("Unhandled slot %d", static_cast<int>(slot));
     return 0;
@@ -135,7 +139,8 @@ void Init()
   g_Channels[0]->AddDevice(EXIDeviceType::MaskROM, 1);
   g_Channels[SlotToEXIChannel(Slot::SP1)]->AddDevice(SConfig::GetInstance().m_EXIDevice[Slot::SP1],
                                                      SlotToEXIDevice(Slot::SP1));
-  g_Channels[2]->AddDevice(EXIDeviceType::AD16, 0);
+  g_Channels[SlotToEXIChannel(Slot::SP2)]->AddDevice(SConfig::GetInstance().m_EXIDevice[Slot::SP2],
+                                                     SlotToEXIDevice(Slot::SP2));
 
   changeDevice = CoreTiming::RegisterEvent("ChangeEXIDevice", ChangeDeviceCallback);
   updateInterrupts = CoreTiming::RegisterEvent("EXIUpdateInterrupts", UpdateInterruptsCallback);

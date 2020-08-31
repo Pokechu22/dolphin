@@ -36,8 +36,9 @@ enum class Slot : int
   A,
   B,
   SP1,
+  SP2,
 };
-static constexpr auto SLOTS = {Slot::A, Slot::B, Slot::SP1};
+static constexpr auto SLOTS = {Slot::A, Slot::B, Slot::SP1, Slot::SP2};
 static constexpr auto MEMCARD_SLOTS = {Slot::A, Slot::B};
 
 u8 SlotToEXIChannel(Slot slot);

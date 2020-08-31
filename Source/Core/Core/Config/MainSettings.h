@@ -58,6 +58,7 @@ extern const Info<bool> MAIN_GCI_FOLDER_CURRENT_GAME_ONLY;
 extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_A;
 extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_B;
 extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SERIAL_PORT_1;
+extern const Info<ExpansionInterface::EXIDeviceType> MAIN_SERIAL_PORT_2;
 extern const Info<std::string> MAIN_BBA_MAC;
 Info<u32> GetInfoForSIDevice(u32 channel);
 Info<bool> GetInfoForAdapterRumble(u32 channel);

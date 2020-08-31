@@ -1252,6 +1252,8 @@ bool NetPlayServer::SetupNetSettings()
   settings.m_EXIDevice[ExpansionInterface::Slot::B] = Config::Get(Config::MAIN_SLOT_B);
   // There's no way the BBA is going to sync, disable it
   settings.m_EXIDevice[ExpansionInterface::Slot::SP1] = ExpansionInterface::EXIDeviceType::None;
+  // Probably won't sync either
+  settings.m_EXIDevice[ExpansionInterface::Slot::SP2] = ExpansionInterface::EXIDeviceType::None;
 
   for (size_t i = 0; i < Config::SYSCONF_SETTINGS.size(); ++i)
   {

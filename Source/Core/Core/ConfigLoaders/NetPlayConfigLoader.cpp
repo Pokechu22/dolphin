@@ -41,6 +41,8 @@ public:
     layer->Set(Config::MAIN_SLOT_B, m_settings.m_EXIDevice.at(ExpansionInterface::Slot::B));
     layer->Set(Config::MAIN_SERIAL_PORT_1,
                m_settings.m_EXIDevice.at(ExpansionInterface::Slot::SP1));
+    layer->Set(Config::MAIN_SERIAL_PORT_2,
+               m_settings.m_EXIDevice.at(ExpansionInterface::Slot::SP2));
     layer->Set(Config::MAIN_WII_SD_CARD_WRITABLE, m_settings.m_WriteToMemcard);
     layer->Set(Config::MAIN_RAM_OVERRIDE_ENABLE, m_settings.m_RAMOverrideEnable);
     layer->Set(Config::MAIN_MEM1_SIZE, m_settings.m_Mem1Size);

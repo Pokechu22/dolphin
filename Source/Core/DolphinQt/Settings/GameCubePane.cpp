@@ -111,6 +111,16 @@ void GameCubePane::CreateWidgets()
     m_slot_combos[Slot::SP1]->addItem(entry.first, static_cast<int>(entry.second));
   }
 
+  // Add SP2 devices
+
+  for (const auto& entry : {std::make_pair(tr("<Nothing>"), EXIDeviceType::None),
+                            std::make_pair(tr("Dummy"), EXIDeviceType::Dummy),
+                            std::make_pair(tr("AD16"), EXIDeviceType::AD16),
+                            std::make_pair(tr("SD Adapter"), EXIDeviceType::SD)})
+  {
+    m_slot_combos[Slot::SP2]->addItem(entry.first, static_cast<int>(entry.second));
+  }
+
   device_layout->addWidget(new QLabel(tr("Slot A:")), 0, 0);
   device_layout->addWidget(m_slot_combos[Slot::A], 0, 1);
   device_layout->addWidget(m_slot_buttons[Slot::A], 0, 2);
@@ -120,6 +130,9 @@ void GameCubePane::CreateWidgets()
   device_layout->addWidget(new QLabel(tr("SP1:")), 2, 0);
   device_layout->addWidget(m_slot_combos[Slot::SP1], 2, 1);
   device_layout->addWidget(m_slot_buttons[Slot::SP1], 2, 2);
+  device_layout->addWidget(new QLabel(tr("SP2:")), 3, 0);
+  device_layout->addWidget(m_slot_combos[Slot::SP2], 3, 1);
+  device_layout->addWidget(m_slot_buttons[Slot::SP2], 3, 2);
 
   layout->addWidget(ipl_box);
   layout->addWidget(device_box);
@@ -164,6 +177,9 @@ void GameCubePane::UpdateButton(ExpansionInterface::Slot slot)
   case ExpansionInterface::Slot::SP1:
     has_config = (value == ExpansionInterface::EXIDeviceType::Ethernet ||
                   value == ExpansionInterface::EXIDeviceType::EthernetXLink);
+    break;
+  case ExpansionInterface::Slot::SP2:
+    has_config = false;  // TODO
     break;
   }
 
@@ -382,6 +398,9 @@ void GameCubePane::SaveSettings()
       break;
     case ExpansionInterface::Slot::SP1:
       Config::SetBaseOrCurrent(Config::MAIN_SERIAL_PORT_1, dev);
+      break;
+    case ExpansionInterface::Slot::SP2:
+      Config::SetBaseOrCurrent(Config::MAIN_SERIAL_PORT_2, dev);
       break;
     }
   }

@@ -229,6 +229,7 @@ void SConfig::SaveCoreSettings(IniFile& ini)
   core->Set("SlotA", m_EXIDevice[ExpansionInterface::Slot::A]);
   core->Set("SlotB", m_EXIDevice[ExpansionInterface::Slot::B]);
   core->Set("SerialPort1", m_EXIDevice[ExpansionInterface::Slot::SP1]);
+  core->Set("SerialPort2", m_EXIDevice[ExpansionInterface::Slot::SP2]);
   core->Set("BBA_MAC", m_bba_mac);
   core->Set("BBA_XLINK_IP", m_bba_xlink_ip);
   core->Set("BBA_XLINK_CHAT_OSD", m_bba_xlink_chat_osd);
@@ -490,6 +491,8 @@ void SConfig::LoadCoreSettings(IniFile& ini)
   core->Get("SlotB", &m_EXIDevice[ExpansionInterface::Slot::B],
             ExpansionInterface::EXIDeviceType::None);
   core->Get("SerialPort1", &m_EXIDevice[ExpansionInterface::Slot::SP1],
+            ExpansionInterface::EXIDeviceType::None);
+  core->Get("SerialPort2", &m_EXIDevice[ExpansionInterface::Slot::SP2],
             ExpansionInterface::EXIDeviceType::None);
   core->Get("BBA_MAC", &m_bba_mac);
   core->Get("BBA_XLINK_IP", &m_bba_xlink_ip, "127.0.0.1");

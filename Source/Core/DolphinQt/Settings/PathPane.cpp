@@ -18,6 +18,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
 
+#include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/PathPane.h"
 
@@ -98,10 +99,11 @@ void PathPane::BrowseResourcePack()
 
 void PathPane::BrowseSDCard()
 {
-  QString file = QDir::toNativeSeparators(QFileDialog::getOpenFileName(
-      this, tr("Select a SD Card Image"), QString::fromStdString(Config::Get(Config::MAIN_SD_PATH)),
-      tr("SD Card Image (*.raw);;"
-         "All Files (*)")));
+  QString file = QDir::toNativeSeparators(
+      QFileDialog::getOpenFileName(this, tr("Select an SD Card Image"),
+                                   QString::fromStdString(Config::Get(Config::MAIN_SD_PATH)),
+                                   tr("SD Card Image (*.raw);;"
+                                      "All Files (*)")));
   if (!file.isEmpty())
   {
     m_sdcard_edit->setText(file);
@@ -111,7 +113,19 @@ void PathPane::BrowseSDCard()
 
 void PathPane::OnSDCardPathChanged()
 {
-  Config::SetBase(Config::MAIN_SD_PATH, m_sdcard_edit->text().toStdString());
+  std::string path = m_sdcard_edit->text().toStdString();
+  if (path == Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH) ||
+      path == Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH) ||
+      path == Config::Get(Config::MAIN_SP2_SD_CARD_PATH))
+  {
+    ModalMessageBox::critical(this, tr("Error"),
+                              tr("The same file can't be used in multiple slots."));
+    m_sdcard_edit->setText(QString::fromStdString(Config::Get(Config::MAIN_SD_PATH)));
+  }
+  else
+  {
+    Config::SetBase(Config::MAIN_SD_PATH, path);
+  }
 }
 
 void PathPane::OnNANDPathChanged()

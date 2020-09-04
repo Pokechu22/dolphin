@@ -52,6 +52,9 @@ const Info<std::string> MAIN_GCI_FOLDER_B_PATH_OVERRIDE{
 const Info<bool> MAIN_GCI_FOLDER_CURRENT_GAME_ONLY{
     {System::Main, "Core", "GCIFolderCurrentGameOnly"}, false};
 const Info<bool> MAIN_CODE_SYNC_OVERRIDE{{System::Main, "Core", "CheatSyncOverride"}, false};
+const Info<std::string> MAIN_SLOT_A_SD_CARD_PATH{{System::Main, "Core", "SlotASDCardPath"}, ""};
+const Info<std::string> MAIN_SLOT_B_SD_CARD_PATH{{System::Main, "Core", "SlotBSDCardPath"}, ""};
+const Info<std::string> MAIN_SP2_SD_CARD_PATH{{System::Main, "Core", "SP2SDCardPath"}, ""};
 const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_A{
     {System::Main, "Core", "SlotA"}, ExpansionInterface::EXIDeviceType::MemoryCardFolder};
 const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_B{{System::Main, "Core", "SlotB"},

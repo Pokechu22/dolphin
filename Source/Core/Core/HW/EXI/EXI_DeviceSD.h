@@ -21,7 +21,7 @@ namespace ExpansionInterface
 class CEXISD final : public IEXIDevice
 {
 public:
-  explicit CEXISD();
+  explicit CEXISD(int channel_num);
 
   void ImmWrite(u32 data, u32 size) override;
   u32 ImmRead(u32 size) override;

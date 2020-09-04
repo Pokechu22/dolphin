@@ -172,14 +172,15 @@ void GameCubePane::UpdateButton(ExpansionInterface::Slot slot)
   case ExpansionInterface::Slot::B:
     has_config = (value == ExpansionInterface::EXIDeviceType::MemoryCard ||
                   value == ExpansionInterface::EXIDeviceType::AGP ||
-                  value == ExpansionInterface::EXIDeviceType::Microphone);
+                  value == ExpansionInterface::EXIDeviceType::Microphone ||
+                  value == ExpansionInterface::EXIDeviceType::SD);
     break;
   case ExpansionInterface::Slot::SP1:
     has_config = (value == ExpansionInterface::EXIDeviceType::Ethernet ||
                   value == ExpansionInterface::EXIDeviceType::EthernetXLink);
     break;
   case ExpansionInterface::Slot::SP2:
-    has_config = false;  // TODO
+    has_config = (value == ExpansionInterface::EXIDeviceType::SD);
     break;
   }
 
@@ -192,16 +193,18 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
   using ExpansionInterface::Slot;
 
   QString filter;
-  bool memcard = false;
+  EXIDeviceType type = static_cast<EXIDeviceType>(m_slot_combos[slot]->currentData().toInt());
 
-  switch (static_cast<EXIDeviceType>(m_slot_combos[slot]->currentData().toInt()))
+  switch (type)
   {
   case EXIDeviceType::MemoryCard:
     filter = tr("GameCube Memory Cards (*.raw *.gcp)");
-    memcard = true;
     break;
   case EXIDeviceType::AGP:
     filter = tr("Game Boy Advance Carts (*.gba)");
+    break;
+  case EXIDeviceType::SD:
+    filter = tr("SD Card Image (*.raw)");
     break;
   case EXIDeviceType::Microphone:
     // TODO: convert MappingWindow to use SlotIndex?
@@ -245,7 +248,7 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
   QString path_abs = QFileInfo(filename).absoluteFilePath();
 
   // Memcard validity checks
-  if (memcard)
+  if (type == EXIDeviceType::MemoryCard)
   {
     if (File::Exists(filename.toStdString()))
     {
@@ -281,14 +284,47 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
       }
     }
   }
+  else if (type == EXIDeviceType::SD)
+  {
+    if (path_abs.toStdString() == Config::Get(Config::MAIN_SD_PATH) ||
+        (slot != Slot::A &&
+         path_abs.toStdString() == Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH)) ||
+        (slot != Slot::B &&
+         path_abs.toStdString() == Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH)) ||
+        (slot != Slot::SP2 && path_abs.toStdString() == Config::Get(Config::MAIN_SP2_SD_CARD_PATH)))
+    {
+      ModalMessageBox::critical(this, tr("Error"),
+                                tr("The same file can't be used in multiple slots."));
+      return;
+    }
+  }
 
   QString path_old;
-  if (memcard)
+  if (type == EXIDeviceType::MemoryCard)
   {
     path_old = QFileInfo(QString::fromStdString(slot == Slot::A ?
                                                     Config::Get(Config::MAIN_MEMCARD_A_PATH) :
                                                     Config::Get(Config::MAIN_MEMCARD_B_PATH)))
                    .absoluteFilePath();
+  }
+  else if (type == EXIDeviceType::SD)
+  {
+    switch (slot)
+    {
+    case Slot::A:
+    default:
+      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH)))
+                     .absoluteFilePath();
+      break;
+    case Slot::B:
+      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH)))
+                     .absoluteFilePath();
+      break;
+    case Slot::SP2:
+      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SP2_SD_CARD_PATH)))
+                     .absoluteFilePath();
+      break;
+    }
   }
   else
   {
@@ -297,8 +333,9 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
                                                            SConfig::GetInstance().m_strGbaCartB))
             .absoluteFilePath();
   }
-
-  if (memcard)
+  ModalMessageBox::critical(this, tr("TEST"),
+                            tr("Paths: ") + path_old + tr(" ") + path_abs);
+  if (type == EXIDeviceType::MemoryCard)
   {
     if (slot == Slot::A)
     {
@@ -307,6 +344,21 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
     else
     {
       Config::SetBase(Config::MAIN_MEMCARD_B_PATH, path_abs.toStdString());
+    }
+  }
+  else if (type == EXIDeviceType::SD)
+  {
+    switch (slot)
+    {
+    case Slot::A:
+      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A_SD_CARD_PATH, path_abs.toStdString());
+      break;
+    case Slot::B:
+      Config::SetBaseOrCurrent(Config::MAIN_SLOT_B_SD_CARD_PATH, path_abs.toStdString());
+      break;
+    case Slot::SP2:
+      Config::SetBaseOrCurrent(Config::MAIN_SP2_SD_CARD_PATH, path_abs.toStdString());
+      break;
     }
   }
   else
@@ -323,9 +375,7 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
 
   if (Core::IsRunning() && path_abs != path_old)
   {
-    ExpansionInterface::ChangeDevice(SlotToEXIChannel(slot),
-                                     memcard ? EXIDeviceType::MemoryCard : EXIDeviceType::AGP,
-                                     SlotToEXIDevice(slot));
+    ExpansionInterface::ChangeDevice(SlotToEXIChannel(slot), type, SlotToEXIDevice(slot));
   }
 }
 

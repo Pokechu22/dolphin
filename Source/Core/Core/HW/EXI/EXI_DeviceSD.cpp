@@ -9,16 +9,30 @@
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/Hash.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 
+#include "Core/Config/MainSettings.h"
+
 namespace ExpansionInterface
 {
-CEXISD::CEXISD()
+CEXISD::CEXISD(int channel_num)
 {
-  const std::string filename = File::GetUserPath(D_GCUSER_IDX) + "sdcard.bin";
+  ASSERT_MSG(EXPANSIONINTERFACE, 0 <= channel_num && channel_num <= 2,
+             "Trying to create invalid SD card index %d.", channel_num);
+
+  // TODO: I don't like using channel_num here; Slot would be better
+  std::string filename;
+  if (channel_num == 0)
+    filename = Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH);
+  else if (channel_num == 1)
+    filename = Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH);
+  else
+    filename = Config::Get(Config::MAIN_SP2_SD_CARD_PATH);
+
   m_card.Open(filename, "r+b");
   if (!m_card)
   {

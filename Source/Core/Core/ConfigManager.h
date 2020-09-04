@@ -227,6 +227,7 @@ struct SConfig
 
   std::string m_strGbaCartA;
   std::string m_strGbaCartB;
+  std::string m_slot_a_sd_card_path, m_slot_b_sd_card_path, m_sp2_sd_card_path;
   std::unordered_map<ExpansionInterface::Slot, ExpansionInterface::EXIDeviceType> m_EXIDevice;
   SerialInterface::SIDevices m_SIDevice[4];
 

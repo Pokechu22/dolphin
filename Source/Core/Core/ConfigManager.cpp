@@ -226,6 +226,9 @@ void SConfig::SaveCoreSettings(IniFile& ini)
   core->Set("AudioStretchMaxLatency", m_audio_stretch_max_latency);
   core->Set("AgpCartAPath", m_strGbaCartA);
   core->Set("AgpCartBPath", m_strGbaCartB);
+  core->Set("SlotASDCardPath", m_slot_a_sd_card_path);
+  core->Set("SlotBSDCardPath", m_slot_b_sd_card_path);
+  core->Set("SP2SDCardPath", m_sp2_sd_card_path);
   core->Set("SlotA", m_EXIDevice[ExpansionInterface::Slot::A]);
   core->Set("SlotB", m_EXIDevice[ExpansionInterface::Slot::B]);
   core->Set("SerialPort1", m_EXIDevice[ExpansionInterface::Slot::SP1]);
@@ -486,6 +489,9 @@ void SConfig::LoadCoreSettings(IniFile& ini)
   core->Get("AudioStretchMaxLatency", &m_audio_stretch_max_latency, 80);
   core->Get("AgpCartAPath", &m_strGbaCartA);
   core->Get("AgpCartBPath", &m_strGbaCartB);
+  core->Get("SlotASDCardPath", &m_slot_a_sd_card_path);
+  core->Get("SlotBSDCardPath", &m_slot_b_sd_card_path);
+  core->Get("SP2SDCardPath", &m_sp2_sd_card_path);
   core->Get("SlotA", &m_EXIDevice[ExpansionInterface::Slot::A],
             ExpansionInterface::EXIDeviceType::MemoryCardFolder);
   core->Get("SlotB", &m_EXIDevice[ExpansionInterface::Slot::B],

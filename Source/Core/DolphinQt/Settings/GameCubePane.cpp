@@ -333,8 +333,7 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
                                                            SConfig::GetInstance().m_strGbaCartB))
             .absoluteFilePath();
   }
-  ModalMessageBox::critical(this, tr("TEST"),
-                            tr("Paths: ") + path_old + tr(" ") + path_abs);
+
   if (type == EXIDeviceType::MemoryCard)
   {
     if (slot == Slot::A)

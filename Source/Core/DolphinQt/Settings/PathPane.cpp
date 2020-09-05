@@ -114,9 +114,9 @@ void PathPane::BrowseSDCard()
 void PathPane::OnSDCardPathChanged()
 {
   std::string path = m_sdcard_edit->text().toStdString();
-  if (path == Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH) ||
-      path == Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH) ||
-      path == Config::Get(Config::MAIN_SP2_SD_CARD_PATH))
+  if (path == SConfig::GetInstance().m_slot_a_sd_card_path ||
+      path == SConfig::GetInstance().m_slot_b_sd_card_path ||
+      path == SConfig::GetInstance().m_sp2_sd_card_path)
   {
     ModalMessageBox::critical(this, tr("Error"),
                               tr("The same file can't be used in multiple slots."));

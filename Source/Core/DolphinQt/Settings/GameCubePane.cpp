@@ -288,10 +288,10 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
   {
     if (path_abs.toStdString() == Config::Get(Config::MAIN_SD_PATH) ||
         (slot != Slot::A &&
-         path_abs.toStdString() == Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH)) ||
+         path_abs.toStdString() == SConfig::GetInstance().m_slot_a_sd_card_path) ||
         (slot != Slot::B &&
-         path_abs.toStdString() == Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH)) ||
-        (slot != Slot::SP2 && path_abs.toStdString() == Config::Get(Config::MAIN_SP2_SD_CARD_PATH)))
+         path_abs.toStdString() == SConfig::GetInstance().m_slot_b_sd_card_path) ||
+        (slot != Slot::SP2 && path_abs.toStdString() == SConfig::GetInstance().m_sp2_sd_card_path))
     {
       ModalMessageBox::critical(this, tr("Error"),
                                 tr("The same file can't be used in multiple slots."));
@@ -313,15 +313,15 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
     {
     case Slot::A:
     default:
-      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH)))
+      path_old = QFileInfo(QString::fromStdString(SConfig::GetInstance().m_slot_a_sd_card_path))
                      .absoluteFilePath();
       break;
     case Slot::B:
-      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH)))
+      path_old = QFileInfo(QString::fromStdString(SConfig::GetInstance().m_slot_b_sd_card_path))
                      .absoluteFilePath();
       break;
     case Slot::SP2:
-      path_old = QFileInfo(QString::fromStdString(Config::Get(Config::MAIN_SP2_SD_CARD_PATH)))
+      path_old = QFileInfo(QString::fromStdString(SConfig::GetInstance().m_sp2_sd_card_path))
                      .absoluteFilePath();
       break;
     }
@@ -350,13 +350,13 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
     switch (slot)
     {
     case Slot::A:
-      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A_SD_CARD_PATH, path_abs.toStdString());
+      SConfig::GetInstance().m_slot_a_sd_card_path = path_abs.toStdString();
       break;
     case Slot::B:
-      Config::SetBaseOrCurrent(Config::MAIN_SLOT_B_SD_CARD_PATH, path_abs.toStdString());
+      SConfig::GetInstance().m_slot_b_sd_card_path = path_abs.toStdString();
       break;
     case Slot::SP2:
-      Config::SetBaseOrCurrent(Config::MAIN_SP2_SD_CARD_PATH, path_abs.toStdString());
+      SConfig::GetInstance().m_sp2_sd_card_path = path_abs.toStdString();
       break;
     }
   }

@@ -9,13 +9,12 @@
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
-#include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/Hash.h"
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 
-#include "Core/Config/MainSettings.h"
+#include "Core/ConfigManager.h"
 
 namespace ExpansionInterface
 {
@@ -27,11 +26,11 @@ CEXISD::CEXISD(int channel_num)
   // TODO: I don't like using channel_num here; Slot would be better
   std::string filename;
   if (channel_num == 0)
-    filename = Config::Get(Config::MAIN_SLOT_A_SD_CARD_PATH);
+    filename = SConfig::GetInstance().m_slot_a_sd_card_path;
   else if (channel_num == 1)
-    filename = Config::Get(Config::MAIN_SLOT_B_SD_CARD_PATH);
+    filename = SConfig::GetInstance().m_slot_b_sd_card_path;
   else
-    filename = Config::Get(Config::MAIN_SP2_SD_CARD_PATH);
+    filename = SConfig::GetInstance().m_sp2_sd_card_path;
 
   m_card.Open(filename, "r+b");
   if (!m_card)

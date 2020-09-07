@@ -66,20 +66,17 @@ private:
     // DO NOT obey the warning and give this struct a name. Things will fail.
     struct
     {
-      // Indentation Meaning:
-      // Channels 0, 1, 2
-      //  Channels 0, 1 only
-      //      Channel 0 only
       u32 EXIINTMASK : 1;
       u32 EXIINT : 1;
       u32 TCINTMASK : 1;
       u32 TCINT : 1;
       u32 CLK : 3;
       u32 CHIP_SELECT : 3;  // CS1 and CS2 are Channel 0 only
-      u32 EXTINTMASK : 1;
-      u32 EXTINT : 1;
-      u32 EXT : 1;     // External Insertion Status (1: External EXI device present)
-      u32 ROMDIS : 1;  // ROM Disable
+      u32 EXTINTMASK : 1;   // Channel 0 and 1 only
+      u32 EXTINT : 1;       // Channel 0 and 1 only
+      u32 EXT : 1;  // External Insertion Status (1: External EXI device present); Channel 0 and 1
+                    // only
+      u32 ROMDIS : 1;  // ROM descrambler disable; Channel 0 only
       u32 : 18;
     };
     UEXI_STATUS() = default;

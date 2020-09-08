@@ -6,6 +6,7 @@
 #include "Common/Assert.h"
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/Logging/Log.h"
 
 namespace ExpansionInterface
 {
@@ -27,6 +28,7 @@ void CEXIAD16::TransferByte(u8& byte)
   if (m_position == 0)
   {
     m_command = byte;
+    INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: Command 0x{:02x}", byte);
   }
   else
   {
@@ -53,8 +55,9 @@ void CEXIAD16::TransferByte(u8& byte)
         byte = m_ad16_register.U8[0];
         break;
       }
+      INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: Init byte {:02x}", byte);
+      break;
     }
-    break;
 
     case write:
     {
@@ -73,8 +76,57 @@ void CEXIAD16::TransferByte(u8& byte)
         m_ad16_register.U8[3] = byte;
         break;
       }
+      INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: Write byte 0x{:02x}", byte);
+      if (m_position == 4)
+      {
+        // Based on http://hitmen.c02.at/files/yagcd/yagcd/chap10.html#sec10.6.2
+        switch (m_ad16_register.U32)
+        {
+        case 1:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Initialized; cached 1",
+                       m_ad16_register.U32);
+          break;
+        case 2:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Cached 2", m_ad16_register.U32);
+          break;
+        case 3:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Cached 3", m_ad16_register.U32);
+          break;
+        case 4:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: RAM test passed", m_ad16_register.U32);
+          break;
+        case 5:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: RAM test failed 1", m_ad16_register.U32);
+          break;
+        case 6:
+          // Not sure what triggers this or 7; simply flipping a bit doesn't seem to be enough
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: RAM test failed 2", m_ad16_register.U32);
+          break;
+        case 7:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: RAM test failed 3", m_ad16_register.U32);
+          break;
+        case 8:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: System init", m_ad16_register.U32);
+          break;
+        case 9:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: DVD init", m_ad16_register.U32);
+          break;
+        case 0xa:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Card init", m_ad16_register.U32);
+          break;
+        case 0xb:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Video init", m_ad16_register.U32);
+          break;
+        case 0xc:
+          INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: {:08x}: Final ready", m_ad16_register.U32);
+          break;
+        default:
+          WARN_LOG_FMT(EXPANSIONINTERFACE, "AD16: unknown value {:08x}", m_ad16_register.U32);
+          break;
+        }
+      }
+      break;
     }
-    break;
 
     case read:
     {
@@ -93,8 +145,13 @@ void CEXIAD16::TransferByte(u8& byte)
         byte = m_ad16_register.U8[3];
         break;
       }
+      INFO_LOG_FMT(EXPANSIONINTERFACE, "AD16: Read byte 0x{:02x}", byte);
+      break;
     }
-    break;
+
+    default:
+      WARN_LOG_FMT(EXPANSIONINTERFACE, "AD16: Unknown command 0x{:02x} (byte {:02x})", m_command,
+                   byte);
     }
   }
 

@@ -41,16 +41,16 @@ void CEXIAD16::TransferByte(u8& byte)
         DEBUG_ASSERT(byte == 0x00);
         break;  // just skip
       case 2:
-        byte = m_ad16_register.U8[0];
+        byte = m_ad16_register.U8[3];
         break;
       case 3:
-        byte = m_ad16_register.U8[1];
-        break;
-      case 4:
         byte = m_ad16_register.U8[2];
         break;
+      case 4:
+        byte = m_ad16_register.U8[1];
+        break;
       case 5:
-        byte = m_ad16_register.U8[3];
+        byte = m_ad16_register.U8[0];
         break;
       }
     }

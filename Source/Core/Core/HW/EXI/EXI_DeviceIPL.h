@@ -34,6 +34,8 @@ public:
 
   static bool HasIPLDump();
 
+  u32 ReadDecryptedIPL(u32 addr);
+
 private:
   std::unique_ptr<u8[]> m_rom;
 

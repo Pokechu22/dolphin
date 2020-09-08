@@ -422,4 +422,10 @@ u32 CEXIIPL::GetEmulatedTime(u32 epoch)
 
   return static_cast<u32>(ltime) - epoch;
 }
+
+u32 CEXIIPL::ReadDecryptedIPL(u32 addr)
+{
+  ASSERT(addr + 3 < ROM_SIZE);
+  return m_rom[addr + 0] << 24 | m_rom[addr + 1] << 16 | m_rom[addr + 2] << 8 | m_rom[addr + 3];
+}
 }  // namespace ExpansionInterface

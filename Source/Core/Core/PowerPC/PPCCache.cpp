@@ -9,6 +9,10 @@
 #include "Common/Swap.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/DolphinAnalytics.h"
+#include "Core/HW/EXI/EXI.h"
+#include "Core/HW/EXI/EXI_Channel.h"
+#include "Core/HW/EXI/EXI_Device.h"
+#include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/Memmap.h"
 #include "Core/PowerPC/JitInterface.h"
 #include "Core/PowerPC/PowerPC.h"
@@ -85,6 +89,66 @@ constexpr std::array<u32, 128> s_way_from_plru = [] {
 
   return data;
 }();
+
+// During the GameCube boot process, code execution starts at 0xfff00100, which is mapped to an
+// automated EXI transfer from the IPL (with decryption).  Note in particular that the decryption
+// does not care about the address, so everything must be read in forward order exactly once; thus,
+// BS1 jumps forward through code to load it into ICache before it then jumps backwards to run it.
+//
+// I've assumed that the mapped region is the size of the copyright message and BS1 (0x800 bytes),
+// and that it actually starts mapping at offset 0 for 0xfff00000, and that this mapping always
+// exists (though it would return encrypted data after decryption is disabled).  None of this is
+// hardware tested.
+//
+// This cannot be done with regular MMIOs, as Memory::Read_U32 doesn't use them.
+void ReadCacheBlock(u32 address, std::array<u32, ICACHE_BLOCK_SIZE>& block)
+{
+  address = (address & ~0x1f);  // Keep aligned with the block
+  if ((address & 0xfffff800) == 0xfff00000)
+  {
+    u32 offset = address & 0x7ff;
+    ExpansionInterface::IEXIDevice* ipl = ExpansionInterface::GetChannel(0)->GetDevice(1 << 1);
+    DEBUG_ASSERT(ipl != nullptr);
+    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDeviceType::MaskROM);
+    // Note that there's some funkyness here that isn't emulated; per
+    // http://hitmen.c02.at/files/yagcd/yagcd/chap2.html#sec2.8.3 the CPU actually reads 64 bits
+    // at a time and 32 of those bits are sent back decrpyted over the EXI bus, since there's no
+    // way to not write data. Since this is only observable via bus snooping, there isn't a reason
+    // to emulate it, and we just read the whole cache block instead.
+    ipl->SetCS(1);
+    ipl->ImmWrite(offset << 6, 4);
+    for (u32 i = 0; i < ICACHE_BLOCK_SIZE; i++)
+    {
+      block[i] = Common::swap32(ipl->ImmRead(4));
+    }
+    ipl->SetCS(0);
+  }
+  else
+  {
+    Memory::CopyFromEmu(reinterpret_cast<u8*>(block.data()), address, ICACHE_BLOCK_SIZE * 4);
+  }
+}
+
+// This function is only called as a fallback when ICache is disabled.
+// Since it might be called multiple times for the same address (in fact, it must be for the ICache
+// stale data message), we can't depend on EXI bus decryption here (and can't access EXI at all,
+// since this can happen in the middle of actual emulated EXI transfers), so hack into already
+// decrypted data.
+u32 ReadInstruction0(u32 address)
+{
+  if ((address & 0xfffff800) == 0xfff00000)
+  {
+    u32 offset = address & 0x7ff;
+    ExpansionInterface::IEXIDevice* ipl = ExpansionInterface::GetChannel(0)->GetDevice(1 << 1);
+    DEBUG_ASSERT(ipl != nullptr);
+    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDeviceType::MaskROM);
+    return static_cast<ExpansionInterface::CEXIIPL*>(ipl)->ReadDecryptedIPL(offset);
+  }
+  else
+  {
+    return Memory::Read_U32(address);
+  }
+}
 }  // Anonymous namespace
 
 InstructionCache::~InstructionCache()
@@ -140,7 +204,8 @@ void InstructionCache::Invalidate(u32 addr)
 u32 InstructionCache::ReadInstruction(u32 addr)
 {
   if (!HID0.ICE || m_disable_icache)  // instruction cache is disabled
-    return Memory::Read_U32(addr);
+    return ReadInstruction0(addr);
+
   u32 set = (addr >> 5) & 0x7f;
   u32 tag = addr >> 12;
 
@@ -161,14 +226,14 @@ u32 InstructionCache::ReadInstruction(u32 addr)
   if (t == 0xff)  // load to the cache
   {
     if (HID0.ILOCK)  // instruction cache is locked
-      return Memory::Read_U32(addr);
+      return ReadInstruction0(addr);
     // select a way
     if (valid[set] != 0xff)
       t = s_way_from_valid[valid[set]];
     else
       t = s_way_from_plru[plru[set]];
     // load
-    Memory::CopyFromEmu(reinterpret_cast<u8*>(data[set][t].data()), (addr & ~0x1f), 32);
+    ReadCacheBlock(addr, data[set][t]);
     if (valid[set] & (1 << t))
     {
       if (tags[set][t] & (ICACHE_VMEM_BIT >> 12))
@@ -191,7 +256,7 @@ u32 InstructionCache::ReadInstruction(u32 addr)
   // update plru
   plru[set] = (plru[set] & ~s_plru_mask[t]) | s_plru_value[t];
   const u32 res = Common::swap32(data[set][t][(addr >> 2) & 7]);
-  const u32 inmem = Memory::Read_U32(addr);
+  const u32 inmem = ReadInstruction0(addr);
   if (res != inmem)
   {
     INFO_LOG_FMT(POWERPC,

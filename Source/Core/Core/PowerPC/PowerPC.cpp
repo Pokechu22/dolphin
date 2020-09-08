@@ -198,8 +198,8 @@ static void ResetRegisters()
   TU = 0;
   SystemTimers::TimeBaseSet();
 
-  // MSR should be 0x40, but we don't emulate BS1, so it would never be turned off :}
   ppcState.msr.Hex = 0;
+  ppcState.msr.IP = true;
   rDEC = 0xFFFFFFFF;
   SystemTimers::DecrementerSet();
 }
@@ -448,7 +448,8 @@ void UpdatePerformanceMonitor(u32 cycles, u32 num_load_stores, u32 num_fp_inst)
 
 void CheckExceptions()
 {
-  u32 exceptions = ppcState.Exceptions;
+  const u32 exceptions = ppcState.Exceptions;
+  const u32 exception_base = ppcState.msr.IP ? 0xFFF00000 : 0;
 
   // Example procedure:
   // Set SRR0 to either PC or NPC
@@ -464,7 +465,7 @@ void CheckExceptions()
   // MSR.Hex &= ~0x04EF36; // 0x04FF36 also clears ME (only for machine check exception)
   //
   // Set to exception type entry point
-  // NPC = 0x00000x00;
+  // NPC = 0x00000x00; // or 0xfff00x00
 
   // TODO(delroth): Exception priority is completely wrong here: depending on
   // the instruction class, exceptions should be executed in a given order,
@@ -478,7 +479,7 @@ void CheckExceptions()
     SRR1 = (MSR.Hex & 0x87C0FFFF) | (1 << 30);
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000400;
+    PC = NPC = exception_base | 0x400;
 
     DEBUG_LOG_FMT(POWERPC, "EXCEPTION_ISI");
     ppcState.Exceptions &= ~EXCEPTION_ISI;
@@ -490,7 +491,7 @@ void CheckExceptions()
     SRR1 |= MSR.Hex & 0x87C0FFFF;
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000700;
+    PC = NPC = exception_base | 0x700;
 
     DEBUG_LOG_FMT(POWERPC, "EXCEPTION_PROGRAM");
     ppcState.Exceptions &= ~EXCEPTION_PROGRAM;
@@ -501,7 +502,7 @@ void CheckExceptions()
     SRR1 = MSR.Hex & 0x87C0FFFF;
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000C00;
+    PC = NPC = exception_base | 0xC00;
 
     DEBUG_LOG_FMT(POWERPC, "EXCEPTION_SYSCALL (PC={:08x})", PC);
     ppcState.Exceptions &= ~EXCEPTION_SYSCALL;
@@ -513,7 +514,7 @@ void CheckExceptions()
     SRR1 = MSR.Hex & 0x87C0FFFF;
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000800;
+    PC = NPC = exception_base | 0x800;
 
     DEBUG_LOG_FMT(POWERPC, "EXCEPTION_FPU_UNAVAILABLE");
     ppcState.Exceptions &= ~EXCEPTION_FPU_UNAVAILABLE;
@@ -528,7 +529,7 @@ void CheckExceptions()
     SRR1 = MSR.Hex & 0x87C0FFFF;
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000300;
+    PC = NPC = exception_base | 0x300;
     // DSISR and DAR regs are changed in GenerateDSIException()
 
     DEBUG_LOG_FMT(POWERPC, "EXCEPTION_DSI");
@@ -540,7 +541,7 @@ void CheckExceptions()
     SRR1 = MSR.Hex & 0x87C0FFFF;
     MSR.LE = MSR.ILE;
     MSR.Hex &= ~0x04EF36;
-    PC = NPC = 0x00000600;
+    PC = NPC = exception_base | 0x600;
 
     // TODO crazy amount of DSISR options to check out
 
@@ -557,7 +558,8 @@ void CheckExceptions()
 
 void CheckExternalExceptions()
 {
-  u32 exceptions = ppcState.Exceptions;
+  const u32 exceptions = ppcState.Exceptions;
+  const u32 exception_base = ppcState.msr.IP ? 0xFFF00000 : 0;
 
   // EXTERNAL INTERRUPT
   // Handling is delayed until MSR.EE=1.
@@ -565,12 +567,12 @@ void CheckExternalExceptions()
   {
     if (exceptions & EXCEPTION_EXTERNAL_INT)
     {
-      // Pokemon gets this "too early", it hasn't a handler yet
+      // Pokémon gets this "too early", it hasn't a handler yet
       SRR0 = NPC;
       SRR1 = MSR.Hex & 0x87C0FFFF;
       MSR.LE = MSR.ILE;
       MSR.Hex &= ~0x04EF36;
-      PC = NPC = 0x00000500;
+      PC = NPC = exception_base | 0x500;
 
       DEBUG_LOG_FMT(POWERPC, "EXCEPTION_EXTERNAL_INT");
       ppcState.Exceptions &= ~EXCEPTION_EXTERNAL_INT;
@@ -583,7 +585,7 @@ void CheckExternalExceptions()
       SRR1 = MSR.Hex & 0x87C0FFFF;
       MSR.LE = MSR.ILE;
       MSR.Hex &= ~0x04EF36;
-      PC = NPC = 0x00000F00;
+      PC = NPC = exception_base | 0xF00;
 
       DEBUG_LOG_FMT(POWERPC, "EXCEPTION_PERFORMANCE_MONITOR");
       ppcState.Exceptions &= ~EXCEPTION_PERFORMANCE_MONITOR;
@@ -594,7 +596,7 @@ void CheckExternalExceptions()
       SRR1 = MSR.Hex & 0x87C0FFFF;
       MSR.LE = MSR.ILE;
       MSR.Hex &= ~0x04EF36;
-      PC = NPC = 0x00000900;
+      PC = NPC = exception_base | 0x900;
 
       DEBUG_LOG_FMT(POWERPC, "EXCEPTION_DECREMENTER");
       ppcState.Exceptions &= ~EXCEPTION_DECREMENTER;

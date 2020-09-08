@@ -391,9 +391,6 @@ bool CBoot::LoadMapFromFilename()
   return false;
 }
 
-// If ipl.bin is not found, this function does *some* of what BS1 does:
-// loading IPL(BS2) and jumping to it.
-// It does not initialize the hardware or anything else like BS1 does.
 bool CBoot::Load_BS2(const std::string& boot_rom_filename)
 {
   // CRC32 hashes of the IPL file, obtained from Redump
@@ -437,32 +434,9 @@ bool CBoot::Load_BS2(const std::string& boot_rom_filename)
                    pal_ipl ? "PAL" : "NTSC", Config::GetDirectoryForRegion(boot_region));
   }
 
-  // Run the descrambler over the encrypted section containing BS1/BS2
-  ExpansionInterface::CEXIIPL::Descrambler((u8*)data.data() + 0x100, 0x1AFE00);
-
-  // TODO: Execution is supposed to start at 0xFFF00000, not 0x81200000;
-  // copying the initial boot code to 0x81200000 is a hack.
-  // For now, HLE the first few instructions and start at 0x81200150
-  // to work around this.
-  Memory::CopyToEmu(0x01200000, data.data() + 0x100, 0x700);
-  Memory::CopyToEmu(0x01300000, data.data() + 0x820, 0x1AFE00);
-
-  PowerPC::ppcState.gpr[3] = 0xfff0001f;
-  PowerPC::ppcState.gpr[4] = 0x00002030;
-  PowerPC::ppcState.gpr[5] = 0x0000009c;
-
-  MSR.FP = 1;
-  MSR.DR = 1;
-  MSR.IR = 1;
-
-  PowerPC::ppcState.spr[SPR_HID0] = 0x0011c464;
-  PowerPC::ppcState.spr[SPR_IBAT3U] = 0xfff0001f;
-  PowerPC::ppcState.spr[SPR_IBAT3L] = 0xfff00001;
-  PowerPC::ppcState.spr[SPR_DBAT3U] = 0xfff0001f;
-  PowerPC::ppcState.spr[SPR_DBAT3L] = 0xfff00001;
-  SetupBAT(/*is_wii*/ false);
-
-  PC = 0x81200150;
+  // fff00000 is mapped to an automatic transfer from the IPL ROM, which loads BS1.
+  // BS1 then loads and runs BS2.  See PPCCache.cpp for details.
+  PC = 0xfff00100;
   return true;
 }
 

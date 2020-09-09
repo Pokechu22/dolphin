@@ -134,6 +134,12 @@ void ReadCacheBlock(u32 address, std::array<u32, ICACHE_BLOCK_SIZE>& block)
 // stale data message), we can't depend on EXI bus decryption here (and can't access EXI at all,
 // since this can happen in the middle of actual emulated EXI transfers), so hack into already
 // decrypted data.
+//
+// One thing that is slightly troubling is that ICache starts disabled.  BS1 enables it in the first
+// 3 instructions, but that does mean 3 reads go through this function instead.  I'm not sure how it
+// works on console when the next instructions are loaded into ICache; wouldn't the first 3
+// instructions be read again for the same cache block, thus yielding different results?
+// This doesn't impact Dolphin since this function bypasses the decryption state entirely, though.
 u32 ReadInstruction0(u32 address)
 {
   if ((address & 0xfffff800) == 0xfff00000)

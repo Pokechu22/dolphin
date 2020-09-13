@@ -212,7 +212,7 @@ class CEXIETHERNET : public IEXIDevice
 public:
   explicit CEXIETHERNET(BBADeviceType type);
   virtual ~CEXIETHERNET();
-  void SetCS(int cs) override;
+  void SetCS(u32 cs, bool was_selected, bool is_selected) override;
   bool IsPresent() const override;
   bool IsInterruptSet() override;
   void ImmWrite(u32 data, u32 size) override;

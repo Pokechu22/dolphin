@@ -33,7 +33,7 @@ class CEXIMemoryCard : public IEXIDevice
 public:
   CEXIMemoryCard(int index, bool gci_folder, const Memcard::HeaderData& header_data);
   ~CEXIMemoryCard() override;
-  void SetCS(int cs) override;
+  void SetCS(u32 cs, bool was_selected, bool is_selected) override;
   bool IsInterruptSet() override;
   bool UseDelayedTransferCompletion() const override;
   bool IsPresent() const override;

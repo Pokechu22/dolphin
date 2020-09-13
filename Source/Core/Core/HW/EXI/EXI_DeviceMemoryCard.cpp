@@ -281,9 +281,9 @@ void CEXIMemoryCard::CmdDoneLater(u64 cycles)
   CoreTiming::ScheduleEvent(cycles, s_et_cmd_done[m_card_index], m_card_index);
 }
 
-void CEXIMemoryCard::SetCS(int cs)
+void CEXIMemoryCard::SetCS(u32 cs, bool was_selected, bool is_selected)
 {
-  if (cs)  // not-selected to selected
+  if (!was_selected && is_selected)
   {
     m_position = 0;
   }

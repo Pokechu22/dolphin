@@ -32,6 +32,7 @@ CEXISD::CEXISD(int channel_num)
   else
     filename = SConfig::GetInstance().m_sp2_sd_card_path;
 
+  INFO_LOG(EXPANSIONINTERFACE, "Reading SD card %s", filename.c_str());
   m_card.Open(filename, "r+b");
   if (!m_card)
   {

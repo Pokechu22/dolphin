@@ -58,48 +58,24 @@ CEXISD::CEXISD(int channel_num)
 
 void CEXISD::ImmWrite(u32 data, u32 size)
 {
-  if (state == State::Uninitialized || state == State::GetId)
+  while (size--)
   {
-    // Get ID command
-    INFO_LOG(EXPANSIONINTERFACE, "SD: EXI_GetID detected (size = %x, data = %x)", size, data);
-    state = State::GetId;
-  }
-  else
-  {
-    while (size--)
-    {
-      u8 byte = data >> 24;
-      WriteByte(byte);
-      data <<= 8;
-    }
+    u8 byte = data >> 24;
+    WriteByte(byte);
+    data <<= 8;
   }
 }
 
 u32 CEXISD::ImmRead(u32 size)
 {
-  if (state == State::Uninitialized)
+  u32 res = 0;
+  u32 position = 0;
+  while (size--)
   {
-    // ?
-    return 0;
+    u8 byte = ReadByte();
+    res |= byte << (24 - (position++ * 8));
   }
-  else if (state == State::GetId)
-  {
-    INFO_LOG(EXPANSIONINTERFACE, "SD: EXI_GetID finished (size = %x)", size);
-    state = State::ReadyForCommand;
-    // Same signed/unsigned mismatch in libogc; it wants -1
-    return -1;
-  }
-  else
-  {
-    u32 res = 0;
-    u32 position = 0;
-    while (size--)
-    {
-      u8 byte = ReadByte();
-      res |= byte << (24 - (position++ * 8));
-    }
-    return res;
-  }
+  return res;
 }
 
 void CEXISD::ImmReadWrite(u32& data, u32 size)
@@ -484,7 +460,8 @@ u8 CEXISD::ReadByte()
   {
     if (response.empty())
     {
-      // WARN_LOG(EXPANSIONINTERFACE, "Attempted to read from empty SD queue");
+      // Note that SD cards are detected by trying to read a device ID, and getting 0xffffffff back;
+      // this behavior is required for correct handling.
       return 0xff;
     }
     else

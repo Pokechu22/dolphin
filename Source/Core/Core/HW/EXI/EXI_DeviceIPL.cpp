@@ -365,12 +365,24 @@ void CEXIIPL::TransferByte(u8& data)
         break;
       }
     }
-    else if (IN_RANGE(WII_RTC) && DEV_ADDR(WII_RTC) == 0x20)
+    else if (IN_RANGE(WII_RTC))
     {
-      if (m_command.is_write())
-        g_rtc_flags.m_hex = data;
+      if (DEV_ADDR(WII_RTC) == 0x20)
+      {
+        if (m_command.is_write())
+          g_rtc_flags.m_hex = data;
+        else
+          data = g_rtc_flags.m_hex;
+      }
       else
-        data = g_rtc_flags.m_hex;
+      {
+        if (m_command.is_write())
+          WARN_LOG_FMT(EXPANSIONINTERFACE, "Unknown Wii RTC write {:02x} with offset {:x}", data,
+                       DEV_ADDR(WII_RTC));
+        else
+          WARN_LOG_FMT(EXPANSIONINTERFACE, "Unknown Wii RTC read with offset {:x}",
+                       DEV_ADDR(WII_RTC));
+      }
     }
     else if (IN_RANGE(EUART))
     {

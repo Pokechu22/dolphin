@@ -29,8 +29,6 @@ public:
   static u32 GetEmulatedTime(u32 epoch);
   static u64 NetPlay_GetEmulatedTime();
 
-  static void Descrambler(u8* data, u32 size);
-
   static bool HasIPLDump();
 
   u32 ReadDecryptedIPL(u32 addr);

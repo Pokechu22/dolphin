@@ -294,4 +294,64 @@ void CEXIChannel::SetEXIINT(bool exiint)
 {
   m_status.EXIINT = !!exiint;
 }
+
+// bootrom descrambler reversed by segher
+// Copyright 2008 Segher Boessenkool <segher@kernel.crashing.org>
+bool Descrambler::ProduceKeyBit()
+{
+  bool t0 = t & 1;
+  bool t1 = (t >> 1) & 1;
+  bool u0 = u & 1;
+  bool u1 = (u >> 1) & 1;
+  bool v0 = v & 1;
+
+  x ^= t1 ^ v0;
+  x ^= (u0 | u1);
+  x ^= (t0 ^ u1 ^ v0) & (t0 ^ u0);
+
+  if (t0 == u0)
+  {
+    v >>= 1;
+    if (v0)
+      v ^= 0xb3d0;
+  }
+
+  if (!t0)
+  {
+    u >>= 1;
+    if (u0)
+      u ^= 0xfb10;
+  }
+
+  t >>= 1;
+  if (t0)
+    t ^= 0xa740;
+
+  return x;
+}
+
+u8 Descrambler::ProduceKeyByte()
+{
+  u8 acc = 0;
+
+  for (u8 nacc = 0; nacc < 8; nacc++)
+  {
+    acc = (acc << 1) | u8(ProduceKeyBit());
+  }
+
+  return acc;
+}
+
+u8 Descrambler::Descramble(u8 input)
+{
+  return input ^ ProduceKeyByte();
+}
+
+void Descrambler::Descramble(u8* data, size_t size)
+{
+  for (u32 i = 0; i < size; i++)
+  {
+    data[i] = Descramble(data[i]);
+  }
+}
 }  // namespace ExpansionInterface

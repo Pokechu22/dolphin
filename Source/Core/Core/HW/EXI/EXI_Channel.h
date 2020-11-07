@@ -22,6 +22,22 @@ namespace ExpansionInterface
 class IEXIDevice;
 enum class EXIDeviceType : int;
 
+// bootrom descrambler reversed by segher
+// Copyright 2008 Segher Boessenkool <segher@kernel.crashing.org>
+struct Descrambler
+{
+  u16 t = 0x2953;
+  u16 u = 0xd9c2;
+  u16 v = 0x3ff1;
+
+  bool x = true;
+
+  bool ProduceKeyBit();
+  u8 ProduceKeyByte();
+  u8 Descramble(u8 input);
+  void Descramble(u8* data, size_t size);
+};
+
 class CEXIChannel
 {
 public:

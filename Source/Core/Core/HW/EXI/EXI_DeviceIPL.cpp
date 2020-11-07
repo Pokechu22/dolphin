@@ -34,9 +34,6 @@
 
 namespace ExpansionInterface
 {
-// We should provide an option to choose from the above, or figure out the checksum (the algo in
-// yagcd seems wrong) so that people can change default language.
-
 static const char iplverPAL[0x100] = "(C) 1999-2001 Nintendo.  All rights reserved."
                                      "(C) 1999 ArtX Inc.  All rights reserved."
                                      "PAL  Revision 1.0  ";
@@ -80,8 +77,7 @@ CEXIIPL::CEXIIPL()
   // Clear RTC
   g_SRAM.rtc = 0;
 
-  // We Overwrite language selection here since it's possible on the GC to change the language as
-  // you please
+  // Overwrite language selection with the language chosen by the user
   g_SRAM.settings.language = Config::Get(Config::MAIN_GC_LANGUAGE);
   g_SRAM.settings.rtc_bias = 0;
   FixSRAMChecksums();

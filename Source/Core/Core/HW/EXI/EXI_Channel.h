@@ -136,5 +136,7 @@ private:
   };
 
   std::array<std::unique_ptr<IEXIDevice>, NUM_DEVICES> m_devices;
+
+  std::optional<Descrambler> m_descrambler;
 };
 }  // namespace ExpansionInterface

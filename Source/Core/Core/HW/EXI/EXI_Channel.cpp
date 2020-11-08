@@ -28,6 +28,8 @@ enum
 CEXIChannel::CEXIChannel(u32 channel_id, const Memcard::HeaderData& memcard_header_data)
     : m_channel_id(channel_id), m_memcard_header_data(memcard_header_data)
 {
+  if (m_channel_id == 0)
+    m_descrambler = Descrambler();
   if (m_channel_id == 0 || m_channel_id == 1)
     m_status.EXTINT = 1;
   if (m_channel_id == 1)
@@ -82,8 +84,11 @@ void CEXIChannel::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                        m_status.EXTINT = 0;
                    }
 
-                   if (m_channel_id == 0)
+                   if (m_channel_id == 0 && new_status.ROMDIS)
+                   {
                      m_status.ROMDIS = new_status.ROMDIS;
+                     m_descrambler.reset();
+                   }
 
                    IEXIDevice* device = GetDevice(m_status.CHIP_SELECT ^ new_status.CHIP_SELECT);
                    m_status.CHIP_SELECT = new_status.CHIP_SELECT;
@@ -282,6 +287,8 @@ void CEXIChannel::DoState(PointerWrap& p)
                                        CoreTiming::FromThread::CPU);
     }
   }
+
+  p.Do(m_descrambler);
 }
 
 void CEXIChannel::PauseAndLock(bool do_lock, bool resume_on_unlock)

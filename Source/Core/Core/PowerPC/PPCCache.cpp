@@ -110,7 +110,7 @@ void ReadCacheBlock(u32 address, std::array<u32, ICACHE_BLOCK_SIZE>& block)
     u32 offset = address & 0x7ff;
     ExpansionInterface::IEXIDevice* ipl = ExpansionInterface::GetChannel(0)->GetDevice(1 << 1);
     DEBUG_ASSERT(ipl != nullptr);
-    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDEVICE_MASKROM);
+    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDeviceType::MaskROM);
     // Note that there's some funkyness here that isn't emulated; per
     // http://hitmen.c02.at/files/yagcd/yagcd/chap2.html#sec2.8.3 the CPU actually reads 64 bits
     // at a time and 32 of those bits are sent back decrpyted over the EXI bus, since there's no
@@ -148,7 +148,7 @@ u32 ReadInstruction0(u32 address)
     u32 offset = address & 0x7ff;
     ExpansionInterface::IEXIDevice* ipl = ExpansionInterface::GetChannel(0)->GetDevice(1 << 1);
     DEBUG_ASSERT(ipl != nullptr);
-    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDEVICE_MASKROM);
+    DEBUG_ASSERT(ipl->m_device_type == ExpansionInterface::EXIDeviceType::MaskROM);
     return static_cast<ExpansionInterface::CEXIIPL*>(ipl)->ReadDecryptedIPL(offset);
   }
   else

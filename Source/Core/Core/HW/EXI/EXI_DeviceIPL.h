@@ -38,6 +38,13 @@ private:
 
   static constexpr u32 ROM_BASE = 0;
   static constexpr u32 ROM_SIZE = 0x200000;
+  static constexpr u32 ROM_SCRAMBLE_START = 0x100;
+  static constexpr u32 ROM_SCRAMBLE_LENGTH = 0x1afe00;
+  static constexpr u32 ROM_SHIFT_JIS_FONT_START = 0x1aff00;
+  static constexpr u32 ROM_SHIFT_JIS_FONT_LENGTH = 0x4a24d;
+  static constexpr u32 ROM_WINDOWS_1252_FONT_START = 0x1fcf00;
+  static constexpr u32 ROM_WINDOWS_1252_FONT_LENGTH = 0x2575;
+
   // TODO these ranges are highly suspect
   static constexpr u32 SRAM_BASE = 0x800000;
   static constexpr u32 SRAM_SIZE = 0x44;

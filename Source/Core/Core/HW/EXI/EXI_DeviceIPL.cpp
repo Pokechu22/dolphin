@@ -54,7 +54,7 @@ CEXIIPL::CEXIIPL()
       LoadFileToIPL(SConfig::GetInstance().m_strBootROM, 0))
   {
     // Descramble the encrypted section (contains BS1 and BS2)
-    Descrambler().Descramble(&m_rom[0x100], 0x1afe00);
+    Descrambler().Descramble(&m_rom[ROM_SCRAMBLE_START], ROM_SCRAMBLE_LENGTH);
     // yay for null-terminated strings
     const std::string_view name{reinterpret_cast<char*>(m_rom.get())};
     INFO_LOG_FMT(BOOT, "Loaded bootrom: {}", name);
@@ -70,8 +70,10 @@ CEXIIPL::CEXIIPL()
       memcpy(&m_rom[0], iplverPAL, sizeof(iplverPAL));
 
     // Load fonts
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS), 0x1aff00);
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_WINDOWS_1252), 0x1fcf00);
+    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS),
+                 ROM_SHIFT_JIS_FONT_START);
+    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_WINDOWS_1252),
+                 ROM_WINDOWS_1252_FONT_START);
   }
 
   // Clear RTC
@@ -175,10 +177,11 @@ void CEXIIPL::LoadFontFile(const std::string& filename, u32 offset)
 
   // Official Windows-1252 and Shift JIS fonts present on the IPL dumps are 0x2575 and 0x4a24d
   // bytes long respectively, so, determine the size of the font being loaded based on the offset
-  const u64 fontsize = (offset == 0x1aff00) ? 0x4a24d : 0x2575;
+  const u64 fontsize = (offset == ROM_SHIFT_JIS_FONT_START) ? ROM_SHIFT_JIS_FONT_LENGTH :
+                                                              ROM_WINDOWS_1252_FONT_LENGTH;
 
   INFO_LOG_FMT(BOOT, "Found IPL dump, loading {} font from {}",
-               (offset == 0x1aff00) ? "Shift JIS" : "Windows-1252", ipl_rom_path);
+               (offset == ROM_SHIFT_JIS_FONT_START) ? "Shift JIS" : "Windows-1252", ipl_rom_path);
 
   stream.Seek(offset, File::SeekOrigin::Begin);
   stream.ReadBytes(&m_rom[offset], fontsize);
@@ -268,14 +271,16 @@ void CEXIIPL::TransferByte(u8& data)
         // ignore the "enabled" bit - see CEXIIPL::CEXIIPL
         data = m_rom[dev_addr];
 
-        if ((dev_addr >= 0x001AFF00) && (dev_addr <= 0x001FF474) && !m_fonts_loaded)
+        if (!m_fonts_loaded)
         {
-          if (dev_addr >= 0x001FCF00)
+          if (dev_addr >= ROM_WINDOWS_1252_FONT_START &&
+              dev_addr < ROM_WINDOWS_1252_FONT_START + ROM_WINDOWS_1252_FONT_LENGTH)
           {
             PanicAlertFmtT("Error: Trying to access Windows-1252 fonts but they are not loaded. "
                            "Games may not show fonts correctly, or crash.");
           }
-          else
+          else if (dev_addr >= ROM_SHIFT_JIS_FONT_START &&
+                   dev_addr < ROM_SHIFT_JIS_FONT_START + ROM_SHIFT_JIS_FONT_LENGTH)
           {
             PanicAlertFmtT("Error: Trying to access Shift JIS fonts but they are not loaded. "
                            "Games may not show fonts correctly, or crash.");

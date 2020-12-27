@@ -36,20 +36,17 @@ public:
 private:
   std::unique_ptr<u8[]> m_rom;
 
+  static constexpr u32 ROM_BASE = 0;
+  static constexpr u32 ROM_SIZE = 0x200000;
   // TODO these ranges are highly suspect
-  enum
-  {
-    ROM_BASE = 0,
-    ROM_SIZE = 0x200000,
-    SRAM_BASE = 0x800000,
-    SRAM_SIZE = 0x44,
-    UART_BASE = 0x800400,
-    UART_SIZE = 0x50,
-    WII_RTC_BASE = 0x840000,
-    WII_RTC_SIZE = 0x40,
-    EUART_BASE = 0xc00000,
-    EUART_SIZE = 8,
-  };
+  static constexpr u32 SRAM_BASE = 0x800000;
+  static constexpr u32 SRAM_SIZE = 0x44;
+  static constexpr u32 UART_BASE = 0x800400;
+  static constexpr u32 UART_SIZE = 0x50;
+  static constexpr u32 WII_RTC_BASE = 0x840000;
+  static constexpr u32 WII_RTC_SIZE = 0x40;
+  static constexpr u32 EUART_BASE = 0xc00000;
+  static constexpr u32 EUART_SIZE = 8;
 
   struct
   {

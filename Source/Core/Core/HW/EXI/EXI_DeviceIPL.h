@@ -77,8 +77,9 @@ private:
 
   void TransferByte(u8& data) override;
 
-  bool LoadFileToIPL(const std::string& filename, u32 offset);
-  void LoadFontFile(const std::string& filename, u32 offset);
+  bool LoadFileToIPL(const std::string& filename, u32 offset, u32 file_offset, u64 size);
+  bool LoadWholeFileToIPL(const std::string& filename, u32 offset, u64 size);
+  void LoadFontFile(const std::string& filename, bool jis);
 
   static std::string FindIPLDump(const std::string& path_prefix);
 };

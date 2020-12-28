@@ -51,7 +51,7 @@ CEXIIPL::CEXIIPL()
   // Load whole ROM dump
   // Note: The Wii doesn't have a copy of the IPL, only fonts.
   if (!SConfig::GetInstance().bWii && Config::Get(Config::SESSION_LOAD_IPL_DUMP) &&
-      LoadFileToIPL(SConfig::GetInstance().m_strBootROM, 0))
+      LoadWholeFileToIPL(SConfig::GetInstance().m_strBootROM, ROM_BASE, ROM_SIZE))
   {
     // Descramble the encrypted section (contains BS1 and BS2)
     Descrambler().Descramble(&m_rom[ROM_SCRAMBLE_START], ROM_SCRAMBLE_LENGTH);
@@ -70,10 +70,8 @@ CEXIIPL::CEXIIPL()
       memcpy(&m_rom[0], iplverPAL, sizeof(iplverPAL));
 
     // Load fonts
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS),
-                 ROM_SHIFT_JIS_FONT_START);
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_WINDOWS_1252),
-                 ROM_WINDOWS_1252_FONT_START);
+    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS), true);
+    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_WINDOWS_1252), false);
   }
 
   // Clear RTC
@@ -105,15 +103,49 @@ void CEXIIPL::DoState(PointerWrap& p)
   p.Do(m_fonts_loaded);
 }
 
-bool CEXIIPL::LoadFileToIPL(const std::string& filename, u32 offset)
+bool CEXIIPL::LoadFileToIPL(const std::string& filename, u32 offset, u32 file_offset, u64 size)
 {
   File::IOFile stream(filename, "rb");
   if (!stream)
     return false;
 
   u64 filesize = stream.GetSize();
+  if (file_offset + size > filesize)
+  {
+    PanicAlertFmtT("Error: {0} too small: should be {1} at least bytes, but was {2} bytes",
+                   filename, file_offset + size, filesize);
+    return false;
+  }
 
-  if (!stream.ReadBytes(&m_rom[offset], filesize))
+  if (!stream.Seek(file_offset, File::SeekOrigin::Begin))
+    return false;
+  if (!stream.ReadBytes(&m_rom[offset], size))
+    return false;
+
+  m_fonts_loaded = true;
+  return true;
+}
+
+bool CEXIIPL::LoadWholeFileToIPL(const std::string& filename, u32 offset, u64 size)
+{
+  File::IOFile stream(filename, "rb");
+  if (!stream)
+    return false;
+
+  u64 filesize = stream.GetSize();
+  if (filesize > size)
+  {
+    PanicAlertFmtT("Warning: {0} too big: should be {1} bytes, but was {2} bytes", filename, size,
+                   filesize);
+  }
+  else if (filesize < size)
+  {
+    PanicAlertFmtT("Error: {0} too small: should be {1} bytes, but was {2} bytes", filename, size,
+                   filesize);
+    return false;
+  }
+
+  if (!stream.ReadBytes(&m_rom[offset], size))
     return false;
 
   m_fonts_loaded = true;
@@ -145,17 +177,20 @@ bool CEXIIPL::HasIPLDump()
   return !ipl_rom_path.empty();
 }
 
-void CEXIIPL::LoadFontFile(const std::string& filename, u32 offset)
+void CEXIIPL::LoadFontFile(const std::string& filename, bool jis)
 {
   // Official IPL fonts are copyrighted. Dolphin ships with a set of free font alternatives but
   // unfortunately the bundled fonts have different padding, causing issues with misplaced text
   // in some titles. This function check if the user has IPL dumps available and load the fonts
   // from those dumps instead of loading the bundled fonts
 
+  u32 offset = jis ? ROM_SHIFT_JIS_FONT_START : ROM_WINDOWS_1252_FONT_START;
+  u32 size = jis ? ROM_SHIFT_JIS_FONT_LENGTH : ROM_WINDOWS_1252_FONT_LENGTH;
+
   if (!Config::Get(Config::SESSION_LOAD_IPL_DUMP))
   {
     // IPL loading disabled, load bundled font instead
-    LoadFileToIPL(filename, offset);
+    LoadWholeFileToIPL(filename, offset, size);
     return;
   }
 
@@ -166,27 +201,17 @@ void CEXIIPL::LoadFontFile(const std::string& filename, u32 offset)
   if (ipl_rom_path.empty())
     ipl_rom_path = FindIPLDump(File::GetSysDirectory() + GC_SYS_DIR);
 
-  // If the user has an IPL dump, load the font from it
-  File::IOFile stream(ipl_rom_path, "rb");
-  if (!stream)
+  // Try loading the font from the user's IPL dump
+  if (LoadFileToIPL(ipl_rom_path, offset, offset, size))
+  {
+    INFO_LOG_FMT(BOOT, "Found IPL dump, loading {} font from {}",
+                 jis ? "Shift JIS" : "Windows-1252", ipl_rom_path);
+  }
+  else
   {
     // No IPL dump available, load bundled font instead
-    LoadFileToIPL(filename, offset);
-    return;
+    LoadWholeFileToIPL(filename, offset, size);
   }
-
-  // Official Windows-1252 and Shift JIS fonts present on the IPL dumps are 0x2575 and 0x4a24d
-  // bytes long respectively, so, determine the size of the font being loaded based on the offset
-  const u64 fontsize = (offset == ROM_SHIFT_JIS_FONT_START) ? ROM_SHIFT_JIS_FONT_LENGTH :
-                                                              ROM_WINDOWS_1252_FONT_LENGTH;
-
-  INFO_LOG_FMT(BOOT, "Found IPL dump, loading {} font from {}",
-               (offset == ROM_SHIFT_JIS_FONT_START) ? "Shift JIS" : "Windows-1252", ipl_rom_path);
-
-  stream.Seek(offset, File::SeekOrigin::Begin);
-  stream.ReadBytes(&m_rom[offset], fontsize);
-
-  m_fonts_loaded = true;
 }
 
 void CEXIIPL::SetCS(int cs)

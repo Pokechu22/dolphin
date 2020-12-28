@@ -67,7 +67,7 @@ private:
     u32 value;
   } m_command{};
   u32 m_command_bytes_received{};
-  // Technically each device has it's own state, but we assume the selected
+  // Technically each device has its own state, but we assume the selected
   // device will not change without toggling cs, and that each device has at
   // most 1 interesting position to keep track of.
   u32 m_cursor{};

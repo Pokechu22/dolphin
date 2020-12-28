@@ -38,6 +38,8 @@ private:
 
   static constexpr u32 ROM_BASE = 0;
   static constexpr u32 ROM_SIZE = 0x200000;
+  static constexpr u32 ROM_NAME_START = 0;
+  static constexpr u32 ROM_NAME_LENGTH = 0x100;
   static constexpr u32 ROM_SCRAMBLE_START = 0x100;
   static constexpr u32 ROM_SCRAMBLE_LENGTH = 0x1afe00;
   static constexpr u32 ROM_SHIFT_JIS_FONT_START = 0x1aff00;

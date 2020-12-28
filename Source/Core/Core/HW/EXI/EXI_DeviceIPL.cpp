@@ -55,8 +55,10 @@ CEXIIPL::CEXIIPL()
   {
     // Descramble the encrypted section (contains BS1 and BS2)
     Descrambler().Descramble(&m_rom[ROM_SCRAMBLE_START], ROM_SCRAMBLE_LENGTH);
-    // yay for null-terminated strings
-    const std::string_view name{reinterpret_cast<char*>(m_rom.get())};
+
+    char* name_raw = reinterpret_cast<char*>(&m_rom[ROM_NAME_START]);
+    size_t name_length = strnlen(name_raw, ROM_NAME_LENGTH);
+    const std::string_view name{name_raw, name_length};
     INFO_LOG_FMT(BOOT, "Loaded bootrom: {}", name);
   }
   else

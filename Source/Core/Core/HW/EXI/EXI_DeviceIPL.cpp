@@ -64,9 +64,9 @@ CEXIIPL::CEXIIPL()
 
     // Copy header
     if (DiscIO::IsNTSC(SConfig::GetInstance().m_region))
-      memcpy(&m_rom[0], iplverNTSC, sizeof(iplverNTSC));
+      memcpy(&m_rom[ROM_NAME_START], iplverNTSC, ROM_NAME_LENGTH);
     else
-      memcpy(&m_rom[0], iplverPAL, sizeof(iplverPAL));
+      memcpy(&m_rom[ROM_NAME_START], iplverPAL, ROM_NAME_LENGTH);
 
     // Load fonts
     LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS), true);

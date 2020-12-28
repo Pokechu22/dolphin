@@ -47,31 +47,7 @@ CEXIIPL::CEXIIPL()
 {
   // Load whole ROM dump
   // Note: The Wii doesn't have a copy of the IPL, only fonts.
-  if (!SConfig::GetInstance().bWii && Config::Get(Config::SESSION_LOAD_IPL_DUMP) &&
-      LoadWholeFileToIPL(SConfig::GetInstance().m_strBootROM, ROM_BASE, ROM_SIZE))
-  {
-    // Descramble the encrypted section (contains BS1 and BS2)
-    Descrambler().Descramble(&m_rom[ROM_SCRAMBLE_START], ROM_SCRAMBLE_LENGTH);
-
-    char* name_raw = reinterpret_cast<char*>(&m_rom[ROM_NAME_START]);
-    size_t name_length = strnlen(name_raw, ROM_NAME_LENGTH);
-    const std::string_view name{name_raw, name_length};
-    INFO_LOG_FMT(BOOT, "Loaded bootrom: {}", name);
-  }
-  else
-  {
-    // If we are in Wii mode or if loading the GC IPL fails, we should still try to load fonts.
-
-    // Copy header
-    if (DiscIO::IsNTSC(SConfig::GetInstance().m_region))
-      memcpy(&m_rom[ROM_NAME_START], iplverNTSC, ROM_NAME_LENGTH);
-    else
-      memcpy(&m_rom[ROM_NAME_START], iplverPAL, ROM_NAME_LENGTH);
-
-    // Load fonts
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS), true);
-    LoadFontFile((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_WINDOWS_1252), false);
-  }
+  LoadIPL();
 
   // Clear RTC
   g_SRAM.rtc = 0;
@@ -102,6 +78,91 @@ void CEXIIPL::DoState(PointerWrap& p)
   p.Do(m_fonts_loaded);
 }
 
+void CEXIIPL::LoadIPL()
+{
+  if (!SConfig::GetInstance().bWii)
+  {
+    if (Config::Get(Config::SESSION_LOAD_IPL_DUMP))
+    {
+      if (LoadWholeFileToIPL(SConfig::GetInstance().m_strBootROM, ROM_BASE, ROM_SIZE))
+      {
+        // Descramble the encrypted section (contains BS1 and BS2)
+        Descrambler().Descramble(&m_rom[ROM_SCRAMBLE_START], ROM_SCRAMBLE_LENGTH);
+
+        char* name_raw = reinterpret_cast<char*>(&m_rom[ROM_NAME_START]);
+        size_t name_length = strnlen(name_raw, ROM_NAME_LENGTH);
+        const std::string_view name{name_raw, name_length};
+        INFO_LOG_FMT(BOOT, "Loaded bootrom: {}", name);
+      }
+      else
+      {
+        // Loading failed, try loading fonts from any bootrom
+        CopyHeader();
+
+        if (!LoadFontsFromAnyIPL())
+        {
+          // Try loading the default fonts
+          LoadFallbackFonts();
+        }
+      }
+    }
+    else
+    {
+      // Load fonts only
+      CopyHeader();
+      LoadFallbackFonts();
+    }
+  }
+  else
+  {
+    // Wii gets only fonts
+    if (!LoadFontsFromAnyIPL())
+    {
+      // Try loading the default fonts
+      LoadFallbackFonts();
+    }
+  }
+}
+
+bool CEXIIPL::LoadFontsFromAnyIPL()
+{
+  std::string ipl_rom_path = FindIPLDump(File::GetUserPath(D_GCUSER_IDX));
+
+  // If not found, check again in Sys folder
+  if (ipl_rom_path.empty())
+    ipl_rom_path = FindIPLDump(File::GetSysDirectory() + GC_SYS_DIR);
+
+  bool read_jis = LoadFileToIPL(ipl_rom_path, ROM_SHIFT_JIS_FONT_START, ROM_SHIFT_JIS_FONT_START,
+                                ROM_SHIFT_JIS_FONT_LENGTH);
+  bool read_win = LoadFileToIPL(ipl_rom_path, ROM_WINDOWS_1252_FONT_START,
+                                ROM_WINDOWS_1252_FONT_START, ROM_WINDOWS_1252_FONT_LENGTH);
+
+  return read_jis && read_win;
+}
+
+bool CEXIIPL::LoadFallbackFonts()
+{
+  // Official IPL fonts are copyrighted. Dolphin ships with a set of free font alternatives but
+  // unfortunately the bundled fonts have different padding, causing issues with misplaced text
+  // in some titles.
+  bool read_jis =
+      LoadWholeFileToIPL((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS),
+                         ROM_SHIFT_JIS_FONT_START, ROM_SHIFT_JIS_FONT_LENGTH);
+  bool read_win =
+      LoadWholeFileToIPL((File::GetSysDirectory() + GC_SYS_DIR + DIR_SEP + FONT_SHIFT_JIS),
+                         ROM_WINDOWS_1252_FONT_START, ROM_WINDOWS_1252_FONT_LENGTH);
+
+  return read_jis && read_win;
+}
+
+void CEXIIPL::CopyHeader()
+{
+  if (DiscIO::IsNTSC(SConfig::GetInstance().m_region))
+    memcpy(&m_rom[ROM_NAME_START], iplverNTSC, ROM_NAME_LENGTH);
+  else
+    memcpy(&m_rom[ROM_NAME_START], iplverPAL, ROM_NAME_LENGTH);
+}
+
 bool CEXIIPL::LoadFileToIPL(const std::string& filename, u32 offset, u32 file_offset, u64 size)
 {
   File::IOFile stream(filename, "rb");
@@ -121,7 +182,6 @@ bool CEXIIPL::LoadFileToIPL(const std::string& filename, u32 offset, u32 file_of
   if (!stream.ReadBytes(&m_rom[offset], size))
     return false;
 
-  m_fonts_loaded = true;
   return true;
 }
 
@@ -147,7 +207,6 @@ bool CEXIIPL::LoadWholeFileToIPL(const std::string& filename, u32 offset, u64 si
   if (!stream.ReadBytes(&m_rom[offset], size))
     return false;
 
-  m_fonts_loaded = true;
   return true;
 }
 
@@ -174,43 +233,6 @@ bool CEXIIPL::HasIPLDump()
     ipl_rom_path = FindIPLDump(File::GetSysDirectory() + GC_SYS_DIR);
 
   return !ipl_rom_path.empty();
-}
-
-void CEXIIPL::LoadFontFile(const std::string& filename, bool jis)
-{
-  // Official IPL fonts are copyrighted. Dolphin ships with a set of free font alternatives but
-  // unfortunately the bundled fonts have different padding, causing issues with misplaced text
-  // in some titles. This function check if the user has IPL dumps available and load the fonts
-  // from those dumps instead of loading the bundled fonts
-
-  u32 offset = jis ? ROM_SHIFT_JIS_FONT_START : ROM_WINDOWS_1252_FONT_START;
-  u32 size = jis ? ROM_SHIFT_JIS_FONT_LENGTH : ROM_WINDOWS_1252_FONT_LENGTH;
-
-  if (!Config::Get(Config::SESSION_LOAD_IPL_DUMP))
-  {
-    // IPL loading disabled, load bundled font instead
-    LoadWholeFileToIPL(filename, offset, size);
-    return;
-  }
-
-  // Check for IPL dumps in User folder
-  std::string ipl_rom_path = FindIPLDump(File::GetUserPath(D_GCUSER_IDX));
-
-  // If not found, check again in Sys folder
-  if (ipl_rom_path.empty())
-    ipl_rom_path = FindIPLDump(File::GetSysDirectory() + GC_SYS_DIR);
-
-  // Try loading the font from the user's IPL dump
-  if (LoadFileToIPL(ipl_rom_path, offset, offset, size))
-  {
-    INFO_LOG_FMT(BOOT, "Found IPL dump, loading {} font from {}",
-                 jis ? "Shift JIS" : "Windows-1252", ipl_rom_path);
-  }
-  else
-  {
-    // No IPL dump available, load bundled font instead
-    LoadWholeFileToIPL(filename, offset, size);
-  }
 }
 
 void CEXIIPL::SetCS(int cs)

@@ -45,9 +45,6 @@ Common::Flags<RTCFlag> g_rtc_flags;
 
 CEXIIPL::CEXIIPL()
 {
-  // Fill the ROM
-  m_rom = std::make_unique<u8[]>(ROM_SIZE);
-
   // Load whole ROM dump
   // Note: The Wii doesn't have a copy of the IPL, only fonts.
   if (!SConfig::GetInstance().bWii && Config::Get(Config::SESSION_LOAD_IPL_DUMP) &&

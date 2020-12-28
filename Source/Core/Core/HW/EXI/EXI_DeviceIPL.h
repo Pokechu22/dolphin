@@ -34,8 +34,6 @@ public:
   u32 ReadDecryptedIPL(u32 addr);
 
 private:
-  std::unique_ptr<u8[]> m_rom;
-
   static constexpr u32 ROM_BASE = 0;
   static constexpr u32 ROM_SIZE = 0x200000;
   static constexpr u32 ROM_NAME_START = 0;
@@ -56,6 +54,8 @@ private:
   static constexpr u32 WII_RTC_SIZE = 0x40;
   static constexpr u32 EUART_BASE = 0xc00000;
   static constexpr u32 EUART_SIZE = 8;
+
+  std::array<u8, ROM_SIZE> m_rom;
 
   struct
   {

@@ -244,6 +244,7 @@ void FIFOPlayerWindow::OnEmulationStopped()
     StopRecording();
 
   UpdateControls();
+  m_analyzer->Update();
 }
 
 void FIFOPlayerWindow::OnRecordingDone()

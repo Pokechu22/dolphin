@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <QDialog>
+#include <QWidget>
 
 class QCheckBox;
 class QDialogButtonBox;
@@ -13,7 +13,7 @@ class QPushButton;
 class QSpinBox;
 class FIFOAnalyzer;
 
-class FIFOPlayerWindow : public QDialog
+class FIFOPlayerWindow : public QWidget
 {
   Q_OBJECT
 public:
@@ -42,6 +42,8 @@ private:
   void UpdateControls();
   void UpdateInfo();
   void UpdateLimits();
+
+  bool eventFilter(QObject* object, QEvent* event) final override;
 
   QLabel* m_info_label;
   QPushButton* m_load;

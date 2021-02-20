@@ -184,9 +184,12 @@ static std::string GetPrimitiveName(u8 cmd)
 
 void FIFOAnalyzer::UpdateDetails()
 {
-  m_detail_list->clearSelection();
-  m_detail_list->clear();
+  // Clearing the detail list can update the selection, which causes UpdateDescription to be called
+  // immediately.  However, the object data offsets have not been recalculated yet, which can cause
+  // the wrong data to be used, potentially leading to out of bounds data or other bad things.
+  // Clear m_object_data_offsets first, so that UpdateDescription exits immediately.
   m_object_data_offsets.clear();
+  m_detail_list->clear();
   m_search_results.clear();
   m_search_next->setEnabled(false);
   m_search_previous->setEnabled(false);
@@ -521,7 +524,7 @@ void FIFOAnalyzer::UpdateDescription()
 
   const auto items = m_tree_widget->selectedItems();
 
-  if (items.isEmpty())
+  if (items.isEmpty() || m_object_data_offsets.empty())
     return;
 
   if (items[0]->data(0, FRAME_ROLE).isNull() || items[0]->data(0, OBJECT_ROLE).isNull())

@@ -164,8 +164,27 @@ void FIFOAnalyzer::UpdateTree()
   }
 }
 
+static std::string GetPrimitiveName(u8 cmd)
+{
+  if ((cmd & 0xC0) != 0x80)
+  {
+    PanicAlertFmt("Not a primitive command: {:#04x}", cmd);
+    return "";
+  }
+  u8 vat = cmd & OpcodeDecoder::GX_VAT_MASK;  // Vertex loader index (0 - 7)
+  u8 primitive = (cmd & OpcodeDecoder::GX_PRIMITIVE_MASK) >> OpcodeDecoder::GX_PRIMITIVE_SHIFT;
+  static constexpr std::array<const char*, 8> names = {
+      "GX_DRAW_QUADS",        "GX_DRAW_QUADS_2 (nonstandard)",
+      "GX_DRAW_TRIANGLES",    "GX_DRAW_TRIANGLE_STRIP",
+      "GX_DRAW_TRIANGLE_FAN", "GX_DRAW_LINES",
+      "GX_DRAW_LINE_STRIP",   "GX_DRAW_POINTS",
+  };
+  return fmt::format("{} VAT {}", names[primitive], vat);
+}
+
 void FIFOAnalyzer::UpdateDetails()
 {
+  m_detail_list->clearSelection();
   m_detail_list->clear();
   m_object_data_offsets.clear();
   m_search_results.clear();
@@ -196,7 +215,7 @@ void FIFOAnalyzer::UpdateDetails()
   const u8* const object = &fifo_frame.fifoData[object_start];
 
   u32 object_offset = 0;
-  while (object_offset < object_nonprim_size)
+  while (object_offset < object_size)
   {
     QString new_label;
     const u32 start_offset = object_offset;
@@ -299,42 +318,61 @@ void FIFOAnalyzer::UpdateDetails()
     break;
 
     default:
-      new_label = tr("Unexpected 0x80 call? Aborting...");
-      object_offset = object_nonprim_size;
+      if ((command & 0xC0) == 0x80)
+      {
+        // Object primitive data
+
+        // object_nonprim_size is found by FIFOPlaybackAnalyzer, and we need it to be correct
+        // because we use the object's end (also calculated by FIFOPlaybackAnalyzer) to determine
+        // the length, to avoid needing to know the vertex format here.
+        if (start_offset != object_nonprim_size)
+        {
+          PanicAlertFmt("The primitive command should be the last command in the object, at "
+                        "{:08x}, but it instead was at {:08x}",
+                        object_nonprim_size, start_offset);
+        }
+
+        const auto name = GetPrimitiveName(command);
+
+        const u16 vertex_count = Common::swap16(&object[object_offset]);
+        object_offset += 2;
+
+        const u32 object_prim_size = object_size - object_offset;
+
+        new_label = QStringLiteral("PRIMITIVE %1 (%2)  %3 vertices %4 bytes   ")
+                        .arg(QString::fromStdString(name))
+                        .arg(command, 2, 16, QLatin1Char('0'))
+                        .arg(vertex_count)
+                        .arg(object_prim_size);
+
+        // It's not really useful to have a massive unreadable hex string for the object primitives.
+        // Put it in the description instead.
+
+        // while (object_offset < object_size)
+        // {
+        //   u32 byte = object[object_offset++];
+        //   new_label += QStringLiteral("%1").arg(byte, 2, 16, QLatin1Char('0'));
+        // }
+
+        object_offset = object_size;
+
+        if (vertex_count != 0 && (object_prim_size % vertex_count) != 0)
+        {
+          new_label += QLatin1Char{'\n'};
+          new_label += tr("NOTE: Stream size doesn't match actual data length");
+        }
+      }
+      else
+      {
+        new_label = QStringLiteral("Unknown opcode %1").arg(command, 2, 16);
+      }
       break;
     }
     new_label = QStringLiteral("%1:  ").arg(start_offset, 8, 16, QLatin1Char('0')) + new_label;
     m_detail_list->addItem(new_label);
   }
 
-  // Object primitive data
-  ASSERT(object_offset == object_nonprim_size);
-  m_object_data_offsets.push_back(object_offset);
-
-  const u8 cmd = object[object_offset++];
-  const u16 vertex_count = Common::swap16(&object[object_offset]);
-  object_offset += 2;
-
-  const u32 object_prim_size = object_size - object_offset;
-
-  QString new_label = QStringLiteral("%1:  %2 %3  ")
-                          .arg(object_offset, 8, 16, QLatin1Char('0'))
-                          .arg(cmd, 2, 16, QLatin1Char('0'))
-                          .arg(vertex_count, 4, 16, QLatin1Char('0'));
-
-  while (object_offset < object_size)
-  {
-    u32 byte = object[object_offset++];
-    new_label += QStringLiteral("%1").arg(byte, 2, 16, QLatin1Char('0'));
-  }
-
-  if (vertex_count != 0 && (object_prim_size % vertex_count) != 0)
-  {
-    new_label += QLatin1Char{'\n'};
-    new_label += tr("NOTE: Stream size doesn't match actual data length");
-  }
-
-  m_detail_list->addItem(new_label);
+  ASSERT(object_offset == object_size);
 
   // Needed to ensure the description updates when changing objects
   m_detail_list->setCurrentRow(0);
@@ -497,7 +535,16 @@ void FIFOAnalyzer::UpdateDescription()
   const FifoFrameInfo& fifo_frame = FifoPlayer::GetInstance().GetFile()->GetFrame(frame_nr);
 
   const u32 object_start = (object_nr == 0 ? 0 : frame_info.objectEnds[object_nr - 1]);
-  const u8* cmddata = &fifo_frame.fifoData[object_start + m_object_data_offsets[entry_nr]];
+  const u32 object_size = frame_info.objectEnds[object_nr] - object_start;
+
+  const u32 entry_start = m_object_data_offsets[entry_nr];
+  const u32 entry_end = (entry_nr + 1 == m_object_data_offsets.size()) ?
+                            object_size :
+                            m_object_data_offsets[entry_nr + 1];
+  ASSERT(entry_start < entry_end);
+  const u32 entry_size = entry_end - entry_start;
+
+  const u8* cmddata = &fifo_frame.fifoData[object_start + entry_start];
 
   // TODO: Not sure whether we should bother translating the descriptions
 
@@ -549,6 +596,51 @@ void FIFOAnalyzer::UpdateDescription()
       text += tr("No description available");
     else
       text += QString::fromStdString(desc);
+  }
+  else if ((*cmddata & 0xC0) == 0x80)
+  {
+    const auto name = GetPrimitiveName(*cmddata);
+    const u16 vertex_count = Common::swap16(cmddata + 1);
+
+    ASSERT(entry_size > 3);
+    const u32 primitive_size = entry_size - 3;
+    const u8* primitive_data = cmddata + 3;
+    const u8* const primitive_end = primitive_data + primitive_size;
+
+    text = tr("Primitive ");
+    text += QString::fromStdString(name);
+    text += QLatin1Char{'\n'};
+
+    u32 vertex_size;
+    if (vertex_count != 0)
+    {
+      if ((primitive_size % vertex_count) == 0)
+      {
+        vertex_size = primitive_size / vertex_count;
+      }
+      else
+      {
+        text += tr("NOTE: Stream size doesn't match actual data length");
+        text += QLatin1Char{'\n'};
+        vertex_size = (primitive_size / vertex_count) + 1;
+      }
+    }
+    else
+    {
+      // TODO: How is the stream end actually determined if the vertex count is zero?
+      // It seems like the vertex count would need to be known ahead of time in all cases...
+
+      // Chosen arbitrarily
+      vertex_size = 16;
+    }
+
+    while (primitive_data < primitive_end)
+    {
+      text += QLatin1Char{'\n'};
+      // TODO: format each vertex nicely, which would require knowing the vertex format
+      for (u32 i = 0; i < vertex_size && primitive_data < primitive_end; i++)
+        text += QStringLiteral("%1").arg(*primitive_data++, 2, 16, QLatin1Char('0'));
+    }
   }
   else
   {

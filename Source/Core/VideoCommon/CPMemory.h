@@ -54,6 +54,10 @@ enum
   ARRAY_COLOR = 2,
   ARRAY_COLOR2 = 3,
   ARRAY_TEXCOORD0 = 4,
+  ARRAY_XF_A = 12,  // Usually used for position matrices
+  ARRAY_XF_B = 13,  // Usually used for normal matrices
+  ARRAY_XF_C = 14,  // Usually used for tex coord matrices
+  ARRAY_XF_D = 15,  // Usually used for light objects
 };
 
 // Vertex components

@@ -285,13 +285,13 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   GenerateLightingShaderCode(out, uid_data->lighting, "vertex_color_", "o.colors_");
 
   // transform texcoords
-  out.Write("float4 coord = float4(0.0, 0.0, 1.0, 1.0);\n");
   for (u32 i = 0; i < uid_data->numTexGens; ++i)
   {
     auto& texinfo = uid_data->texMtxInfo[i];
 
     out.Write("{{\n");
-    out.Write("coord = float4(0.0, 0.0, 1.0, 1.0);\n");
+    out.Write("// Texture coordinate generation for coord {}\n", i);
+    out.Write("float4 coord = float4(0.0, 0.0, 1.0, 1.0);\n");
     switch (texinfo.sourcerow)
     {
     case SourceRow::Geom:
@@ -323,7 +323,7 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
       u32 texnum = static_cast<u32>(texinfo.sourcerow) - static_cast<u32>(SourceRow::Tex0);
       if ((uid_data->components & (VB_HAS_UV0 << (texnum))) != 0)
       {
-        out.Write("coord = float4(rawtex{}.x, rawtex{}.y, 1.0, 1.0);\n", texnum, texnum);
+        out.Write("coord.xy = float2(rawtex{}.x, rawtex{}.y);\n", texnum, texnum);
       }
       break;
     }

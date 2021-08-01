@@ -384,156 +384,133 @@ static void GenVertexShaderTexGens(APIType api_type, u32 num_texgen, ShaderCode&
   for (u32 i = 0; i < num_texgen; i++)
     out.Write("o.tex{} = float3(0.0, 0.0, 0.0);\n", i);
 
-  out.Write("// Texture coordinate generation\n");
-  if (num_texgen == 1)
+  // transform texcoords
+  for (u32 texgen = 0; texgen < num_texgen; ++texgen)
   {
-    out.Write("{{ const uint texgen = 0u;\n");
-  }
-  else
-  {
-    out.Write("{}for (uint texgen = 0u; texgen < {}u; texgen++) {{\n",
-              api_type == APIType::D3D ? "[loop] " : "", num_texgen);
-  }
-
-  out.Write("  // Texcoord transforms\n");
-  out.Write("  float4 coord = float4(0.0, 0.0, 1.0, 1.0);\n"
-            "  uint texMtxInfo = xfmem_texMtxInfo(texgen);\n");
-  out.Write("  switch ({}) {{\n", BitfieldExtract<&TexMtxInfo::sourcerow>("texMtxInfo"));
-  out.Write("  case {:s}:\n", SourceRow::Geom);
-  out.Write("    coord.xyz = rawpos.xyz;\n");
-  out.Write("    break;\n\n");
-  out.Write("  case {:s}:\n", SourceRow::Normal);
-  out.Write(
-      "    coord.xyz = ((components & {}u /* VB_HAS_NRM0 */) != 0u) ? rawnorm0.xyz : coord.xyz;",
-      VB_HAS_NRM0);
-  out.Write("    break;\n\n");
-  out.Write("  case {:s}:\n", SourceRow::BinormalT);
-  out.Write(
-      "    coord.xyz = ((components & {}u /* VB_HAS_NRM1 */) != 0u) ? rawnorm1.xyz : coord.xyz;",
-      VB_HAS_NRM1);
-  out.Write("    break;\n\n");
-  out.Write("  case {:s}:\n", SourceRow::BinormalB);
-  out.Write(
-      "    coord.xyz = ((components & {}u /* VB_HAS_NRM2 */) != 0u) ? rawnorm2.xyz : coord.xyz;",
-      VB_HAS_NRM2);
-  out.Write("    break;\n\n");
-  for (u32 i = 0; i < 8; i++)
-  {
-    out.Write("  case {:s}:\n", static_cast<SourceRow>(static_cast<u32>(SourceRow::Tex0) + i));
-    out.Write(
-        "    coord = ((components & {}u /* VB_HAS_UV{} */) != 0u) ? float4(rawtex{}.x, rawtex{}.y, "
-        "1.0, 1.0) : coord;\n",
-        VB_HAS_UV0 << i, i, i, i);
+    out.Write("{{\n");
+    out.Write("  // Texture coordinate generation for coord {}\n", texgen);
+    out.Write("  float4 coord = float4(0.0, 0.0, 1.0, 1.0);\n");
+    out.Write("  uint texMtxInfo = xfmem_texMtxInfo({}u);\n", texgen);
+    out.Write("  switch ({}) {{\n", BitfieldExtract<&TexMtxInfo::sourcerow>("texMtxInfo"));
+    out.Write("  case {:s}:\n", SourceRow::Geom);
+    out.Write("    coord.xyz = rawpos.xyz;\n");
     out.Write("    break;\n\n");
+    out.Write("  case {:s}:\n", SourceRow::Normal);
+    out.Write("    if ((components & {}u /* VB_HAS_NRM0 */) != 0u)\n", VB_HAS_NRM0);
+    out.Write("      coord.xyz = rawnorm0.xyz;\n");
+    out.Write("    break;\n\n");
+    out.Write("  case {:s}:\n", SourceRow::BinormalT);
+    out.Write("    if ((components & {}u /* VB_HAS_NRM1 */) != 0u)\n", VB_HAS_NRM1);
+    out.Write("      coord.xyz = rawnorm1.xyz;\n");
+    out.Write("    break;\n\n");
+    out.Write("  case {:s}:\n", SourceRow::BinormalB);
+    out.Write("    if ((components & {}u /* VB_HAS_NRM2 */) != 0u)\n", VB_HAS_NRM2);
+    out.Write("      coord.xyz = rawnorm2.xyz;\n");
+    out.Write("    break;\n\n");
+    for (u32 i = 0; i < 8; i++)
+    {
+      out.Write("  case {:s}:\n", static_cast<SourceRow>(static_cast<u32>(SourceRow::Tex0) + i));
+      out.Write("    if ((components & {}u /* VB_HAS_UV{} */) != 0u)\n", VB_HAS_UV0 << i, i);
+      out.Write("      coord.xy = float2(rawtex{}.x, rawtex{}.y);\n", i, i);
+      out.Write("    break;\n\n");
+    }
+    out.Write("  }}\n\n");
+
+    out.Write("  // Input form of AB11 sets z element to 1.0\n");
+    out.Write("  if ({} == {:s}) // inputform == AB11\n",
+              BitfieldExtract<&TexMtxInfo::inputform>("texMtxInfo"), TexInputForm::AB11);
+    out.Write("    coord.z = 1.0f;\n"
+              "\n");
+
+    out.Write("  // first transformation\n");
+    out.Write("  uint texgentype = {};\n", BitfieldExtract<&TexMtxInfo::texgentype>("texMtxInfo"));
+    out.Write("  float3 output_tex;\n"
+              "  switch (texgentype)\n"
+              "  {{\n");
+    out.Write("  case {:s}:\n", TexGenType::EmbossMap);
+    out.Write("    {{\n");
+    out.Write("      uint light = {};\n",
+              BitfieldExtract<&TexMtxInfo::embosslightshift>("texMtxInfo"));
+    out.Write("      uint source = {};\n",
+              BitfieldExtract<&TexMtxInfo::embosssourceshift>("texMtxInfo"));
+    out.Write("      switch (source) {{\n");
+    for (u32 i = 0; i < num_texgen; i++)
+      out.Write("      case {}u: output_tex.xyz = o.tex{}; break;\n", i, i);
+    out.Write("      default: output_tex.xyz = float3(0.0, 0.0, 0.0); break;\n"
+              "      }}\n");
+    out.Write("      if ((components & {}u) != 0u) {{ // VB_HAS_NRM1 | VB_HAS_NRM2\n",
+              VB_HAS_NRM1 | VB_HAS_NRM2);
+    out.Write("        float3 ldir = normalize(" I_LIGHTS "[light].pos.xyz - pos.xyz);\n"
+              "        output_tex.xyz += float3(dot(ldir, _norm1), dot(ldir, _norm2), 0.0);\n"
+              "      }}\n"
+              "    }}\n"
+              "    break;\n\n");
+    out.Write("  case {:s}:\n", TexGenType::Color0);
+    out.Write("    output_tex.xyz = float3(o.colors_0.x, o.colors_0.y, 1.0);\n"
+              "    break;\n\n");
+    out.Write("  case {:s}:\n", TexGenType::Color1);
+    out.Write("    output_tex.xyz = float3(o.colors_1.x, o.colors_1.y, 1.0);\n"
+              "    break;\n\n");
+    out.Write("  case {:s}:\n", TexGenType::Regular);
+    out.Write("  default:\n"
+              "    {{\n");
+    out.Write("      if ((components & ({}u /* VB_HAS_TEXMTXIDX{} */)) != 0u) {{\n",
+              VB_HAS_TEXMTXIDX0 << texgen, texgen);
+    out.Write("        uint tmp = uint(rawtex{}.z);\n", texgen);
+    out.Write("        if ({} == {:s}) {{\n",
+              BitfieldExtract<&TexMtxInfo::projection>("texMtxInfo"), TexSize::STQ);
+    out.Write("          output_tex.xyz = float3(dot(coord, " I_TRANSFORMMATRICES "[tmp]),\n"
+              "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 1u]),\n"
+              "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 2u]));\n"
+              "        }} else {{\n"
+              "          output_tex.xyz = float3(dot(coord, " I_TRANSFORMMATRICES "[tmp]),\n"
+              "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 1u]),\n"
+              "                                  1.0);\n"
+              "        }}\n"
+              "      }} else {{\n");
+    out.Write("        uint tmp = {}u;\n", 3 * texgen);
+    out.Write("        if ({} == {:s}) {{\n",
+              BitfieldExtract<&TexMtxInfo::projection>("texMtxInfo"), TexSize::STQ);
+    out.Write("            output_tex.xyz = float3(dot(coord, " I_TEXMATRICES "[tmp]),\n"
+              "                                    dot(coord, " I_TEXMATRICES "[tmp + 1u]),\n"
+              "                                    dot(coord, " I_TEXMATRICES "[tmp + 2u]));\n"
+              "        }} else {{\n"
+              "            output_tex.xyz = float3(dot(coord, " I_TEXMATRICES "[tmp]),\n"
+              "                                    dot(coord, " I_TEXMATRICES "[tmp + 1u]),\n"
+              "                                  1.0);\n"
+              "        }}\n"
+              "      }}\n"
+              "    }}\n"
+              "    break;\n\n"
+              "  }}\n\n");
+
+    out.Write("  if (xfmem_dualTexInfo != 0u) {{\n");
+    out.Write("    uint postMtxInfo = xfmem_postMtxInfo({}u);", texgen);
+    out.Write("    uint base_index = {};\n", BitfieldExtract<&PostMtxInfo::index>("postMtxInfo"));
+    out.Write("    float4 P0 = " I_POSTTRANSFORMMATRICES "[base_index & 0x3fu];\n"
+              "    float4 P1 = " I_POSTTRANSFORMMATRICES "[(base_index + 1u) & 0x3fu];\n"
+              "    float4 P2 = " I_POSTTRANSFORMMATRICES "[(base_index + 2u) & 0x3fu];\n"
+              "\n");
+    out.Write("    if ({} != 0u)\n", BitfieldExtract<&PostMtxInfo::normalize>("postMtxInfo"));
+    out.Write("      output_tex.xyz = normalize(output_tex.xyz);\n"
+              "\n"
+              "    // multiply by postmatrix\n"
+              "    output_tex.xyz = float3(dot(P0.xyz, output_tex.xyz) + P0.w,\n"
+              "                            dot(P1.xyz, output_tex.xyz) + P1.w,\n"
+              "                            dot(P2.xyz, output_tex.xyz) + P2.w);\n"
+              "  }}\n\n");
+
+    // When q is 0, the GameCube appears to have a special case
+    // This can be seen in devkitPro's neheGX Lesson08 example for Wii
+    // Makes differences in Rogue Squadron 3 (Hoth sky) and The Last Story (shadow culling)
+    out.Write("  if (texgentype == {:s} && output_tex.z == 0.0)\n", TexGenType::Regular);
+    out.Write(
+        "    output_tex.xy = clamp(output_tex.xy / 2.0f, float2(-1.0f,-1.0f), float2(1.0f,1.0f));\n"
+        "\n");
+
+    out.Write("  o.tex{} = output_tex;\n", texgen);
+    out.Write("}}");
   }
-  out.Write("  }}\n"
-            "\n");
-
-  out.Write("  // Input form of AB11 sets z element to 1.0\n");
-  out.Write("  if ({} == {:s}) // inputform == AB11\n",
-            BitfieldExtract<&TexMtxInfo::inputform>("texMtxInfo"), TexInputForm::AB11);
-  out.Write("    coord.z = 1.0f;\n"
-            "\n");
-
-  out.Write("  // first transformation\n");
-  out.Write("  uint texgentype = {};\n", BitfieldExtract<&TexMtxInfo::texgentype>("texMtxInfo"));
-  out.Write("  float3 output_tex;\n"
-            "  switch (texgentype)\n"
-            "  {{\n");
-  out.Write("  case {:s}:\n", TexGenType::EmbossMap);
-  out.Write("    {{\n");
-  out.Write("      uint light = {};\n",
-            BitfieldExtract<&TexMtxInfo::embosslightshift>("texMtxInfo"));
-  out.Write("      uint source = {};\n",
-            BitfieldExtract<&TexMtxInfo::embosssourceshift>("texMtxInfo"));
-  out.Write("      switch (source) {{\n");
-  for (u32 i = 0; i < num_texgen; i++)
-    out.Write("      case {}u: output_tex.xyz = o.tex{}; break;\n", i, i);
-  out.Write("      default: output_tex.xyz = float3(0.0, 0.0, 0.0); break;\n"
-            "      }}\n");
-  out.Write("      if ((components & {}u) != 0u) {{ // VB_HAS_NRM1 | VB_HAS_NRM2\n",
-            VB_HAS_NRM1 | VB_HAS_NRM2);  // Should this be VB_HAS_NRM1 | VB_HAS_NRM2
-  out.Write("        float3 ldir = normalize(" I_LIGHTS "[light].pos.xyz - pos.xyz);\n"
-            "        output_tex.xyz += float3(dot(ldir, _norm1), dot(ldir, _norm2), 0.0);\n"
-            "      }}\n"
-            "    }}\n"
-            "    break;\n\n");
-  out.Write("  case {:s}:\n", TexGenType::Color0);
-  out.Write("    output_tex.xyz = float3(o.colors_0.x, o.colors_0.y, 1.0);\n"
-            "    break;\n\n");
-  out.Write("  case {:s}:\n", TexGenType::Color1);
-  out.Write("    output_tex.xyz = float3(o.colors_1.x, o.colors_1.y, 1.0);\n"
-            "    break;\n\n");
-  out.Write("  case {:s}:\n", TexGenType::Regular);
-  out.Write("  default:\n"
-            "    {{\n");
-  out.Write("      if ((components & ({}u /* VB_HAS_TEXMTXIDX0 */ << texgen)) != 0u) {{\n",
-            VB_HAS_TEXMTXIDX0);
-  out.Write("        // This is messy, due to dynamic indexing of the input texture coordinates.\n"
-            "        // Hopefully the compiler will unroll this whole loop anyway and the switch.\n"
-            "        int tmp = 0;\n"
-            "        switch (texgen) {{\n");
-  for (u32 i = 0; i < num_texgen; i++)
-    out.Write("        case {}u: tmp = int(rawtex{}.z); break;\n", i, i);
-  out.Write("        }}\n"
-            "\n");
-  out.Write("        if ({} == {:s}) {{\n", BitfieldExtract<&TexMtxInfo::projection>("texMtxInfo"),
-            TexSize::STQ);
-  out.Write("          output_tex.xyz = float3(dot(coord, " I_TRANSFORMMATRICES "[tmp]),\n"
-            "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 1]),\n"
-            "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 2]));\n"
-            "        }} else {{\n"
-            "          output_tex.xyz = float3(dot(coord, " I_TRANSFORMMATRICES "[tmp]),\n"
-            "                                  dot(coord, " I_TRANSFORMMATRICES "[tmp + 1]),\n"
-            "                                  1.0);\n"
-            "        }}\n"
-            "      }} else {{\n");
-  out.Write("        if ({} == {:s}) {{\n", BitfieldExtract<&TexMtxInfo::projection>("texMtxInfo"),
-            TexSize::STQ);
-  out.Write("          output_tex.xyz = float3(dot(coord, " I_TEXMATRICES "[3u * texgen]),\n"
-            "                                  dot(coord, " I_TEXMATRICES "[3u * texgen + 1u]),\n"
-            "                                  dot(coord, " I_TEXMATRICES "[3u * texgen + 2u]));\n"
-            "        }} else {{\n"
-            "          output_tex.xyz = float3(dot(coord, " I_TEXMATRICES "[3u * texgen]),\n"
-            "                                  dot(coord, " I_TEXMATRICES "[3u * texgen + 1u]),\n"
-            "                                  1.0);\n"
-            "        }}\n"
-            "      }}\n"
-            "    }}\n"
-            "    break;\n\n"
-            "  }}\n"
-            "\n");
-
-  out.Write("  if (xfmem_dualTexInfo != 0u) {{\n");
-  out.Write("    uint postMtxInfo = xfmem_postMtxInfo(texgen);");
-  out.Write("    uint base_index = {};\n", BitfieldExtract<&PostMtxInfo::index>("postMtxInfo"));
-  out.Write("    float4 P0 = " I_POSTTRANSFORMMATRICES "[base_index & 0x3fu];\n"
-            "    float4 P1 = " I_POSTTRANSFORMMATRICES "[(base_index + 1u) & 0x3fu];\n"
-            "    float4 P2 = " I_POSTTRANSFORMMATRICES "[(base_index + 2u) & 0x3fu];\n"
-            "\n");
-  out.Write("    if ({} != 0u)\n", BitfieldExtract<&PostMtxInfo::normalize>("postMtxInfo"));
-  out.Write("      output_tex.xyz = normalize(output_tex.xyz);\n"
-            "\n"
-            "    // multiply by postmatrix\n"
-            "    output_tex.xyz = float3(dot(P0.xyz, output_tex.xyz) + P0.w,\n"
-            "                            dot(P1.xyz, output_tex.xyz) + P1.w,\n"
-            "                            dot(P2.xyz, output_tex.xyz) + P2.w);\n"
-            "  }}\n\n");
-
-  // When q is 0, the GameCube appears to have a special case
-  // This can be seen in devkitPro's neheGX Lesson08 example for Wii
-  // Makes differences in Rogue Squadron 3 (Hoth sky) and The Last Story (shadow culling)
-  out.Write("  if (texgentype == {:s} && output_tex.z == 0.0)\n", TexGenType::Regular);
-  out.Write(
-      "    output_tex.xy = clamp(output_tex.xy / 2.0f, float2(-1.0f,-1.0f), float2(1.0f,1.0f));\n"
-      "\n");
-
-  out.Write("  // Hopefully GPUs that can support dynamic indexing will optimize this.\n");
-  out.Write("  switch (texgen) {{\n");
-  for (u32 i = 0; i < num_texgen; i++)
-    out.Write("  case {}u: o.tex{} = output_tex; break;\n", i, i);
-  out.Write("  }}\n"
-            "}}\n");
 }
 
 void EnumerateVertexShaderUids(const std::function<void(const VertexShaderUid&)>& callback)

@@ -9,7 +9,6 @@
 #include "Common/Align.h"
 #include "Core/HW/Memmap.h"
 #include "VideoCommon/BPMemory.h"
-#include "VideoCommon/SamplerCommon.h"
 #include "VideoCommon/TextureDecoder.h"
 
 TextureInfo TextureInfo::FromStage(u32 stage)
@@ -29,7 +28,7 @@ TextureInfo TextureInfo::FromStage(u32 stage)
   const u8* tlut_ptr = &texMem[tlutaddr];
 
   std::optional<u32> mip_count;
-  const bool has_mipmaps = SamplerCommon::AreBpTexMode0MipmapsEnabled(tex.texMode0[id]);
+  const bool has_mipmaps = tex.texMode0[id].mipmap_filter != MipMode::None;
   if (has_mipmaps)
   {
     mip_count = (tex.texMode1[id].max_lod + 0xf) / 0x10;

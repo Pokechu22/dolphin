@@ -41,7 +41,7 @@ public:
 
   void OnXF(u16 address, u8 count, const u8* data) override {}
   void OnCP(u8 command, u32 value) override { Callback::OnCP(command, value); }
-  void OnBP(u8 command, u32 value) override {}
+  void OnBP(u8 command, u32 value) override;
   void OnIndexedLoad(u8 array, u32 index, u16 address, u8 size) override {}
   void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat, u32 vertex_size,
                           u16 num_vertices, const u8* vertex_data) override;
@@ -55,9 +55,11 @@ public:
 
   bool m_start_of_primitives = false;
   bool m_end_of_primitives = false;
+  bool m_efb_copy = false;
   // Internal state, copied to above in OnCommand
   bool m_was_primitive = false;
   bool m_is_primitive = false;
+  bool m_is_copy = false;
   bool m_is_nop = false;
   CPState m_cpmem;
 };
@@ -116,6 +118,20 @@ void FifoPlaybackAnalyzer::AnalyzeFrames(FifoDataFile* file,
       }
 
       offset += cmd_size;
+
+      if (analyzer.m_efb_copy)
+      {
+        analyzed.efb_copies.insert(u32(analyzed.objects.size()));
+
+        // EFB copies lack primitive data.
+        // We also increase the offset beforehand, so that the trigger EFB copy command is included.
+        // Some games have an EFB copy before any primitive data (e.g. F-Zero GX), in which case
+        // both the object start and primitive start are 0.
+        ASSERT(primitive_start <= object_start);
+        const u32 size = offset - object_start;
+        analyzed.objects.emplace_back(object_start, size, size, cpmem);
+        object_start = offset;
+      }
     }
 
     ASSERT(offset == frame.fifoData.size());
@@ -135,6 +151,12 @@ void FifoPlaybackAnalyzer::AnalyzeFrames(FifoDataFile* file,
   }
 }
 
+void FifoPlaybackAnalyzer::OnBP(u8 command, u32 value)
+{
+  if (command == BPMEM_TRIGGER_EFB_COPY)
+    m_is_copy = true;
+}
+
 void FifoPlaybackAnalyzer::OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
                                               u32 vertex_size, u16 num_vertices,
                                               const u8* vertex_data)
@@ -151,6 +173,7 @@ void FifoPlaybackAnalyzer::OnCommand(const u8* data, u32 size)
 {
   m_start_of_primitives = false;
   m_end_of_primitives = false;
+  m_efb_copy = false;
 
   if (!m_is_nop)
   {
@@ -158,10 +181,13 @@ void FifoPlaybackAnalyzer::OnCommand(const u8* data, u32 size)
       m_start_of_primitives = true;
     else if (m_was_primitive && !m_is_primitive)
       m_end_of_primitives = true;
+    else if (m_is_copy)
+      m_efb_copy = true;
 
     m_was_primitive = m_is_primitive;
   }
   m_is_primitive = false;
+  m_is_copy = false;
   m_is_nop = false;
 }
 }  // namespace

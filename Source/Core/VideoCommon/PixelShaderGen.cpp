@@ -577,7 +577,7 @@ int4 readTextureLinear(in Texture2DArray tex, uint2 uv1, uint2 uv2, int layer, i
 // dividend and a positive divisor.  We want a positive value such that FlooredModulo(-1, 3) is 2.
 // We don't really care about what happens when the divisor is negative, so Euclidean division would
 // also work, but floored division is easier to implement.  Note that when both the dividend and
-// divisor are positive, FlooredModulo(dividend, divisor) is euqal to dividend % divisor.
+// divisor are positive, FlooredModulo(dividend, divisor) is equal to dividend % divisor.
 // See https://en.wikipedia.org/wiki/Modulo_operation#Variants_of_the_definition
 int FlooredModulo(int dividend, int divisor) {{
   return dividend - divisor * int(floor(float(dividend) / divisor));

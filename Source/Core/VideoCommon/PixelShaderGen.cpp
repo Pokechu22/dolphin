@@ -580,10 +580,7 @@ int4 readTextureLinear(in Texture2DArray tex, uint2 uv1, uint2 uv2, int layer, i
 // divisor are positive, FlooredModulo(dividend, divisor) is equal to dividend % divisor.
 // See https://en.wikipedia.org/wiki/Modulo_operation#Variants_of_the_definition
 int FlooredModulo(int dividend, int divisor) {{
-  //return dividend - divisor * int(floor(float(dividend) / divisor));
-  float value = {}mod(float(dividend), float(divisor));
-  if (value < 0) value += divisor;  // needed for HLSL only; GLSL uses floored divison already
-  return int(value);
+  return dividend - divisor * int(floor(float(dividend) / divisor));
 }}
 
 uint WrapCoord(int coord, uint wrap, int size) {{
@@ -601,8 +598,7 @@ uint WrapCoord(int coord, uint wrap, int size) {{
   }}
 }}
 )",
-                api_type == APIType::D3D ? "f" : "", WrapMode::Clamp, WrapMode::Repeat,
-                WrapMode::Mirror);
+                WrapMode::Clamp, WrapMode::Repeat, WrapMode::Mirror);
     }
     else
     {

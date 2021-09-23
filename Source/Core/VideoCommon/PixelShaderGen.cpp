@@ -542,6 +542,13 @@ void UpdateBoundingBox(float2 rawpos) {{
     {
       out.Write(R"(
 int4 readTexture(in sampler2DArray tex, uint u, uint v, int layer, int lod) {{
+  int3 size = textureSize(tex, lod);
+  int size_s = size.x;
+  int size_t = size.y;
+  if (int(u) < 0) return int4(255, 255, 0, 255);  // Yellow
+  if (int(u) >= size_s) return int4(255, 0, 255, 255);  // Magenta
+  if (int(v) < 0 || int(v) >= size_t) return int4(0, 255, 255, 255);  // Cyan
+
   return iround(texelFetch(tex, int3(u, v, layer), lod) * 255.0);
 }}
 
@@ -551,6 +558,12 @@ int4 readTextureLinear(in sampler2DArray tex, uint2 uv1, uint2 uv2, int layer, i
     {
       out.Write(R"(
 int4 readTexture(in Texture2DArray tex, uint u, uint v, int layer, int lod) {{
+  int size_s, size_t, layers, number_of_levels;
+  tex.GetDimensions(lod, size_s, size_t, layers, number_of_levels);
+  if (int(u) < 0) return int4(255, 255, 0, 255);  // Yellow
+  if (int(u) >= size_s) return int4(255, 0, 255, 255);  // Magenta
+  if (int(v) < 0 || int(v) >= size_t) return int4(0, 255, 255, 255);  // Cyan
+
   return iround(tex.Load(int4(u, v, layer, lod)) * 255.0);
 }}
 
@@ -748,7 +761,7 @@ uint WrapCoord(int coord, uint wrap, int size) {{
     base_lod++;
   }}
 
-  if (is_linear) {{
+  /*if (is_linear) {{
     uint2 texuv1 = uint2(
         WrapCoord(((uv.x >> base_lod) - 64) >> 7, wrap_s, size_s >> base_lod),
         WrapCoord(((uv.y >> base_lod) - 64) >> 7, wrap_t, size_t >> base_lod));
@@ -774,14 +787,14 @@ uint WrapCoord(int coord, uint wrap, int size) {{
     }}
 
     return result;
-  }} else {{
+  }} else {{*/
     uint2 texuv = uint2(
         WrapCoord(uv.x >> (7 + base_lod), wrap_s, size_s >> base_lod),
         WrapCoord(uv.y >> (7 + base_lod), wrap_t, size_t >> base_lod));
 
     int4 result = readTexture(tex, texuv.x, texuv.y, layer, base_lod);
 
-    if (frac_lod != 0 && mipmap_linear) {{
+    /*if (frac_lod != 0 && mipmap_linear) {{
       texuv = uint2(
           WrapCoord(uv.x >> (7 + base_lod + 1), wrap_s, size_s >> (base_lod + 1)),
           WrapCoord(uv.y >> (7 + base_lod + 1), wrap_t, size_t >> (base_lod + 1)));
@@ -789,9 +802,9 @@ uint WrapCoord(int coord, uint wrap, int size) {{
       result *= 16 - frac_lod;
       result += readTexture(tex, texuv.x, texuv.y, layer, base_lod + 1) * frac_lod;
       result >>= 4;
-    }}
+    }}*/
     return result;
-  }}
+  /*}}*/
 }}
 )");
   }

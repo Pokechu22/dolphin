@@ -546,8 +546,9 @@ int4 readTexture(in sampler2DArray tex, uint u, uint v, int layer, int lod) {{
   int size_s = size.x;
   int size_t = size.y;
   if (int(u) < 0) return int4(255, 255, 0, 255);  // Yellow
-  if (int(u) >= size_s) return int4(255, 0, 255, 255);  // Magenta
-  if (int(v) < 0 || int(v) >= size_t) return int4(0, 255, 255, 255);  // Cyan
+  if (int(u) == size_s) return int4(255, 0, 255, 255);  // Magenta
+  if (int(u) > size_s) return int4(0, 255, 255, 255);  // Cyan
+  if (int(v) < 0 || int(v) >= size_t) return int4(255, 255, 255, 255);  // White
 
   return iround(texelFetch(tex, int3(u, v, layer), lod) * 255.0);
 }}
@@ -561,8 +562,9 @@ int4 readTexture(in Texture2DArray tex, uint u, uint v, int layer, int lod) {{
   int size_s, size_t, layers, number_of_levels;
   tex.GetDimensions(lod, size_s, size_t, layers, number_of_levels);
   if (int(u) < 0) return int4(255, 255, 0, 255);  // Yellow
-  if (int(u) >= size_s) return int4(255, 0, 255, 255);  // Magenta
-  if (int(v) < 0 || int(v) >= size_t) return int4(0, 255, 255, 255);  // Cyan
+  if (int(u) == size_s) return int4(255, 0, 255, 255);  // Magenta
+  if (int(u) > size_s) return int4(0, 255, 255, 255);  // Cyan
+  if (int(v) < 0 || int(v) >= size_t) return int4(255, 255, 255, 255);  // White
 
   return iround(tex.Load(int4(u, v, layer, lod)) * 255.0);
 }}

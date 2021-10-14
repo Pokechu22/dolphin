@@ -179,8 +179,10 @@ class DetailCallback : public OpcodeDecoder::Callback
 public:
   explicit DetailCallback(CPState cpmem) : m_cpmem(cpmem) {}
 
-  void OnCP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnCP(u8 command, u32 value))
   {
+    // Note: No need to update m_cpmem as it already has the final value for this object
+
     const auto [name, desc] = GetCPRegInfo(command, value);
     ASSERT(!name.empty());
 
@@ -190,7 +192,7 @@ public:
                .arg(QString::fromStdString(name));
   }
 
-  void OnXF(u16 address, u8 count, const u8* data) override
+  OPCODE_CALLBACK(void OnXF(u16 address, u8 count, const u8* data))
   {
     const auto [name, desc] = GetXFTransferInfo(address, count, data);
     ASSERT(!name.empty());
@@ -209,7 +211,7 @@ public:
     text += QStringLiteral("  ") + QString::fromStdString(name);
   }
 
-  void OnBP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnBP(u8 command, u32 value))
   {
     const auto [name, desc] = GetBPRegInfo(command, value);
     ASSERT(!name.empty());
@@ -219,15 +221,15 @@ public:
                .arg(value, 6, 16, QLatin1Char('0'))
                .arg(QString::fromStdString(name));
   }
-  void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size) override
+  OPCODE_CALLBACK(void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size))
   {
     const auto [desc, written] = GetXFIndexedLoadInfo(array, index, address, size);
     text = QStringLiteral("LOAD INDX %1   %2")
                .arg(QString::fromStdString(fmt::to_string(array)))
                .arg(QString::fromStdString(desc));
   }
-  void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat, u32 vertex_size,
-                          u16 num_vertices, const u8* vertex_data) override
+  OPCODE_CALLBACK(void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
+                                          u32 vertex_size, u16 num_vertices, const u8* vertex_data))
   {
     const auto name = fmt::to_string(primitive);
 
@@ -257,14 +259,14 @@ public:
 #endif
   }
 
-  void OnDisplayList(u32 address, u32 size) override
+  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size))
   {
     text = QObject::tr("Call display list at %1 with size %2")
                .arg(address, 8, 16, QLatin1Char('0'))
                .arg(size, 8, 16, QLatin1Char('0'));
   }
 
-  void OnNop(u32 count) override
+  OPCODE_CALLBACK(void OnNop(u32 count))
   {
     if (count > 1)
       text = QStringLiteral("NOP (%1x)").arg(count);
@@ -272,7 +274,7 @@ public:
       text = QStringLiteral("NOP");
   }
 
-  void OnUnknown(u8 opcode, const u8* data) override
+  OPCODE_CALLBACK(void OnUnknown(u8 opcode, const u8* data))
   {
     using OpcodeDecoder::Opcode;
     if (static_cast<Opcode>(opcode) == Opcode::GX_CMD_UNKNOWN_METRICS)
@@ -283,7 +285,9 @@ public:
       text = QStringLiteral("Unknown opcode %1").arg(opcode, 2, 16);
   }
 
-  CPState& GetCPState() override { return m_cpmem; }
+  OPCODE_CALLBACK(void OnCommand(const u8* data, u32 size)) {}
+
+  OPCODE_CALLBACK(CPState& GetCPState()) { return m_cpmem; }
 
   QString text;
   CPState m_cpmem;
@@ -489,7 +493,7 @@ class DescriptionCallback : public OpcodeDecoder::Callback
 public:
   explicit DescriptionCallback(const CPState& cpmem) : m_cpmem(cpmem) {}
 
-  void OnBP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnBP(u8 command, u32 value))
   {
     const auto [name, desc] = GetBPRegInfo(command, value);
     ASSERT(!name.empty());
@@ -504,8 +508,10 @@ public:
       text += QString::fromStdString(desc);
   }
 
-  void OnCP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnCP(u8 command, u32 value))
   {
+    // Note: No need to update m_cpmem as it already has the final value for this object
+
     const auto [name, desc] = GetCPRegInfo(command, value);
     ASSERT(!name.empty());
 
@@ -519,7 +525,7 @@ public:
       text += QString::fromStdString(desc);
   }
 
-  void OnXF(u16 address, u8 count, const u8* data) override
+  OPCODE_CALLBACK(void OnXF(u16 address, u8 count, const u8* data))
   {
     const auto [name, desc] = GetXFTransferInfo(address, count, data);
     ASSERT(!name.empty());
@@ -534,7 +540,7 @@ public:
       text += QString::fromStdString(desc);
   }
 
-  void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size) override
+  OPCODE_CALLBACK(void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size))
   {
     const auto [desc, written] = GetXFIndexedLoadInfo(array, index, address, size);
 
@@ -563,8 +569,8 @@ public:
     text += QString::fromStdString(written);
   }
 
-  void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat, u32 vertex_size,
-                          u16 num_vertices, const u8* vertex_data) override
+  OPCODE_CALLBACK(void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
+                                          u32 vertex_size, u16 num_vertices, const u8* vertex_data))
   {
     const auto name = fmt::format("{} VAT {}", primitive, vat);
 
@@ -676,18 +682,20 @@ public:
     }
   }
 
-  void OnDisplayList(u32 address, u32 size) override
+  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size))
   {
     text = QObject::tr("No description available");
   }
 
-  void OnNop(u32 count) override { text = QObject::tr("No description available"); }
-  void OnUnknown(u8 opcode, const u8* data) override
+  OPCODE_CALLBACK(void OnNop(u32 count)) { text = QObject::tr("No description available"); }
+  OPCODE_CALLBACK(void OnUnknown(u8 opcode, const u8* data))
   {
     text = QObject::tr("No description available");
   }
 
-  CPState& GetCPState() override { return m_cpmem; }
+  OPCODE_CALLBACK(void OnCommand(const u8* data, u32 size)) {}
+
+  OPCODE_CALLBACK(CPState& GetCPState()) { return m_cpmem; }
 
   QString text;
   CPState m_cpmem;

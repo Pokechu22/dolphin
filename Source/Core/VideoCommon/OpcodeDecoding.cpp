@@ -44,7 +44,7 @@ template <bool is_preprocess>
 class RunCallback final : public Callback
 {
 public:
-  DOLPHIN_FORCE_INLINE void OnXF(u16 address, u8 count, const u8* data) override
+  OPCODE_CALLBACK(void OnXF(u16 address, u8 count, const u8* data))
   {
     m_cycles += 18 + 6 * count;
 
@@ -55,7 +55,7 @@ public:
       INCSTAT(g_stats.this_frame.num_xf_loads);
     }
   }
-  DOLPHIN_FORCE_INLINE void OnCP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnCP(u8 command, u32 value))
   {
     m_cycles += 12;
     const u8 sub_command = command & CP_COMMAND_MASK;
@@ -94,9 +94,9 @@ public:
         VertexLoaderManager::g_preprocess_vat_dirty[command & CP_VAT_MASK] = true;
       }
     }
-    Callback::OnCP(command, value);
+    GetCPState().LoadCPReg(command, value);
   }
-  DOLPHIN_FORCE_INLINE void OnBP(u8 command, u32 value) override
+  OPCODE_CALLBACK(void OnBP(u8 command, u32 value))
   {
     m_cycles += 12;
 
@@ -110,7 +110,7 @@ public:
       INCSTAT(g_stats.this_frame.num_bp_loads);
     }
   }
-  DOLPHIN_FORCE_INLINE void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size) override
+  OPCODE_CALLBACK(void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size))
   {
     m_cycles += 6;
 
@@ -119,9 +119,8 @@ public:
     else
       LoadIndexedXF(array, index, address, size);
   }
-  DOLPHIN_FORCE_INLINE void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
-                                               u32 vertex_size, u16 num_vertices,
-                                               const u8* vertex_data) override
+  OPCODE_CALLBACK(void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
+                                          u32 vertex_size, u16 num_vertices, const u8* vertex_data))
   {
     // load vertices
     const u32 size = vertex_size * num_vertices;
@@ -136,7 +135,7 @@ public:
     // 4 GPU ticks per vertex, 3 CPU ticks per GPU tick
     m_cycles += num_vertices * 4 * 3 + 6;
   }
-  void OnDisplayList(u32 address, u32 size) override
+  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size))
   {
     m_cycles += 6;
 
@@ -185,11 +184,11 @@ public:
       m_in_display_list = false;
     }
   }
-  DOLPHIN_FORCE_INLINE void OnNop(u32 count) override
+  OPCODE_CALLBACK(void OnNop(u32 count))
   {
     m_cycles += 6 * count;  // Hm, this means that we scan over nop streams pretty slowly...
   }
-  DOLPHIN_FORCE_INLINE void OnUnknown(u8 opcode, const u8* data) override
+  OPCODE_CALLBACK(void OnUnknown(u8 opcode, const u8* data))
   {
     if (static_cast<Opcode>(opcode) == Opcode::GX_UNKNOWN_RESET)
     {
@@ -220,7 +219,7 @@ public:
     }
   }
 
-  DOLPHIN_FORCE_INLINE void OnCommand(const u8* data, u32 size) override
+  OPCODE_CALLBACK(void OnCommand(const u8* data, u32 size))
   {
     ASSERT(size >= 1);
     if constexpr (!is_preprocess)
@@ -234,7 +233,7 @@ public:
     }
   }
 
-  DOLPHIN_FORCE_INLINE CPState& GetCPState() override
+  OPCODE_CALLBACK(CPState& GetCPState())
   {
     if constexpr (is_preprocess)
       return g_preprocess_cp_state;

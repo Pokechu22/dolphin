@@ -75,8 +75,10 @@ void Init();
 
 #ifdef OPCODE_CALLBACK_USE_INHERITANCE
 #define OPCODE_CALLBACK(sig) DOLPHIN_FORCE_INLINE sig override
+#define OPCODE_CALLBACK_NOINLINE(sig) sig override
 #else
 #define OPCODE_CALLBACK(sig) DOLPHIN_FORCE_INLINE sig
+#define OPCODE_CALLBACK_NOINLINE(sig) sig
 #endif
 class Callback
 {

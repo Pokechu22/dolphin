@@ -135,7 +135,10 @@ public:
     // 4 GPU ticks per vertex, 3 CPU ticks per GPU tick
     m_cycles += num_vertices * 4 * 3 + 6;
   }
-  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size))
+  // This can't be inlined since it calls Run, which makes it recursive
+  // m_in_display_list prevents it from actually recursing infinitely, but there's no real benefit
+  // to inlining Run for the display list directly.
+  OPCODE_CALLBACK_NOINLINE(void OnDisplayList(u32 address, u32 size))
   {
     m_cycles += 6;
 

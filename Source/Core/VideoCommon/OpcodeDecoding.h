@@ -67,19 +67,29 @@ void Init();
 // The functions themselves are templates so that the compiler generates separate versions for each
 // callback (with the callback functions inlined), so the callback doesn't actually need to be
 // publicly inherited.
+// Compilers don't generate warnings for failed inlining with virtual functions, so this define
+// allows disabling the use of virtual functions to generate those warnings.  However, this means
+// that missing functions will generate errors on their use in RunCommand, instead of in the
+// subclass, which can be confusing.
+#define OPCODE_CALLBACK_USE_INHERITANCE
+
+#ifdef OPCODE_CALLBACK_USE_INHERITANCE
+#define OPCODE_CALLBACK(sig) DOLPHIN_FORCE_INLINE sig override
+#else
+#define OPCODE_CALLBACK(sig) DOLPHIN_FORCE_INLINE sig
+#endif
 class Callback
 {
+#ifdef OPCODE_CALLBACK_USE_INHERITANCE
 public:
   virtual ~Callback() = default;
 
   // Called on any XF command.
   virtual void OnXF(u16 address, u8 count, const u8* data) = 0;
-  // Called on any CP command.  The base implementation mutates the current CP state, and should be
-  // called by subclasses.
-  DOLPHIN_FORCE_INLINE virtual void OnCP(u8 command, u32 value)
-  {
-    GetCPState().LoadCPReg(command, value);
-  }
+  // Called on any CP command.
+  // Subclasses should update the CP state with GetCPState().LoadCPReg(command, value) so that
+  // primitive commands decode properly.
+  virtual void OnCP(u8 command, u32 value) = 0;
   // Called on any BP command.
   virtual void OnBP(u8 command, u32 value) = 0;
   // Called on any indexed XF load command.
@@ -97,10 +107,11 @@ public:
 
   // Called on ANY command.  The first byte of data is the opcode.  Size will be at least 1.
   // This function is called after one of the above functions is called.
-  virtual void OnCommand(const u8* data, u32 size) {}
+  virtual void OnCommand(const u8* data, u32 size) = 0;
 
   // Get the current CP state.  Needed for vertex decoding; will also be mutated for CP commands.
   virtual CPState& GetCPState() = 0;
+#endif
 };
 
 namespace detail

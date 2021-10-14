@@ -25,22 +25,25 @@ public:
   {
   }
 
-  void OnXF(u16 address, u8 count, const u8* data) override {}
-  void OnCP(u8 command, u32 value) override { Callback::OnCP(command, value); }
-  void OnBP(u8 command, u32 value) override {}
-  void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size) override;
-  void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat, u32 vertex_size,
-                          u16 num_vertices, const u8* vertex_data) override;
-  void OnDisplayList(u32 address, u32 size) override
+  OPCODE_CALLBACK(void OnXF(u16 address, u8 count, const u8* data)) {}
+  OPCODE_CALLBACK(void OnCP(u8 command, u32 value)) { GetCPState().LoadCPReg(command, value); }
+  OPCODE_CALLBACK(void OnBP(u8 command, u32 value)) {}
+  OPCODE_CALLBACK(void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size));
+  OPCODE_CALLBACK(void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
+                                          u32 vertex_size, u16 num_vertices,
+                                          const u8* vertex_data));
+  OPCODE_CALLBACK(void OnDisplayList(u32 address, u32 size))
   {
     WARN_LOG_FMT(VIDEO,
                  "Unhandled display list call {:08x} {:08x}; should have been inlined earlier",
                  address, size);
   }
-  void OnNop(u32 count) override {}
-  void OnUnknown(u8 opcode, const u8* data) override {}
+  OPCODE_CALLBACK(void OnNop(u32 count)) {}
+  OPCODE_CALLBACK(void OnUnknown(u8 opcode, const u8* data)) {}
 
-  CPState& GetCPState() override { return m_cpmem; }
+  OPCODE_CALLBACK(void OnCommand(const u8* data, u32 size)) {}
+
+  OPCODE_CALLBACK(CPState& GetCPState()) { return m_cpmem; }
 
 private:
   void ProcessVertexComponent(CPArray array_index, VertexComponentFormat array_type,

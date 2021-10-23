@@ -818,15 +818,17 @@ std::pair<std::string, std::string> GetBPRegInfo(u8 cmd, u32 cmddata)
   {
     const X12Y12 top_left{.hex = cmddata};
     return std::make_pair(RegName(BPMEM_SCISSORTL),
-                          fmt::format("Scissor Top: {}\nScissor Left: {}", top_left.y, top_left.x));
+                          fmt::format("Scissor Top: {} ({})\nScissor Left: {} ({})",
+                                      top_left.y - 342, top_left.y, top_left.x - 342, top_left.x));
   }
 
   case BPMEM_SCISSORBR:  // 0x21
   {
     const X12Y12 bottom_right{.hex = cmddata};
-    return std::make_pair(
-        RegName(BPMEM_SCISSORBR),
-        fmt::format("Scissor Bottom: {}\nScissor Right: {}", bottom_right.y, bottom_right.x));
+    return std::make_pair(RegName(BPMEM_SCISSORBR),
+                          fmt::format("Scissor Bottom: {} ({})\nScissor Right: {} ({})",
+                                      bottom_right.y - 342 + 1, bottom_right.y,
+                                      bottom_right.x - 342 + 1, bottom_right.x));
   }
 
   case BPMEM_LINEPTWIDTH:  // 0x22
@@ -1003,9 +1005,18 @@ std::pair<std::string, std::string> GetBPRegInfo(u8 cmd, u32 cmddata)
 
   case BPMEM_SCISSOROFFSET:  // 0x59
   {
+    // GX_SetScissorBoxOffset works like this (per libogc, adjusted slightly for clarity):
+    // void GX_SetScissorBoxOffset(s32 xoffset, s32 yoffset)
+    // {
+    //   s32 xoff = (xoffset + 342) >> 1;
+    //   s32 yoff = (yoffset + 342) >> 1;
+    //   GX_LOAD_BP_REG((0x59000000 | ((yoff & 0x3ff) << 10) | (xoff & 0x3ff)));
+    // }
+    // To recover the input value, we use (xoff << 1) - 342.
     const S32X10Y10 xy{.hex = cmddata};
     return std::make_pair(RegName(BPMEM_SCISSOROFFSET),
-                          fmt::format("Scissor X offset: {}\nScissor Y offset: {}", xy.x, xy.y));
+                          fmt::format("Scissor X offset: {} ({})\nScissor Y offset: {} ({})",
+                                      (xy.x << 1) - 342, xy.x, (xy.y << 1) - 342, xy.y));
   }
 
   case BPMEM_PRELOAD_ADDR:  // 0x60

@@ -355,6 +355,8 @@ void VertexShaderManager::SetConstants()
       ViewportCorrectionMatrix(s_viewportCorrection);
       bProjectionChanged = true;
     }
+
+    g_stats.AddScissorRect(bpmem, xfmem);
   }
 
   if (bProjectionChanged || g_freelook_camera.GetController()->IsDirty())

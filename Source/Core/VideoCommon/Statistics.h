@@ -4,6 +4,10 @@
 #pragma once
 
 #include <array>
+#include <vector>
+
+struct BPMemory;
+struct XFMemory;
 
 struct Statistics
 {
@@ -21,6 +25,31 @@ struct Statistics
   std::array<float, 6> proj;
   std::array<float, 16> gproj;
   std::array<float, 16> g2proj;
+
+  struct ScissorInfo
+  {
+    ScissorInfo(const BPMemory& bpmemory, const XFMemory& xfmemory);
+    bool operator==(const ScissorInfo& other) const;
+
+    int x0;
+    int y0;
+    int x1;
+    int y1;
+    int xOff;
+    int yOff;
+
+    int vx0;
+    int vy0;
+    int vx1;
+    int vy1;
+  };
+
+  std::vector<ScissorInfo> scissor_info;
+  size_t current_scissor = 0;  // 0 => all, otherwise index + 1
+  int scissor_scale = 10;
+  bool allow_duplicate_scissors = false;
+  bool show_scissors = true;
+  bool show_viewports = false;
 
   struct ThisFrame
   {
@@ -62,8 +91,10 @@ struct Statistics
   ThisFrame this_frame;
   void ResetFrame();
   void SwapDL();
+  void AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemory);
   void Display() const;
   void DisplayProj() const;
+  void DisplayScissor();
 };
 
 extern Statistics g_stats;

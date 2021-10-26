@@ -156,8 +156,8 @@ Statistics::ScissorInfo::ScissorInfo(const BPMemory& bpmemory, const XFMemory& x
   y0 = bpmemory.scissorTL.y - 342;
   x1 = bpmemory.scissorBR.x - 342 + 1;
   y1 = bpmemory.scissorBR.y - 342 + 1;
-  xOff = (bpmemory.scissorOffset.x << 1) - 342;
-  yOff = (bpmemory.scissorOffset.y << 1) - 342;
+  xOff = ((bpmemory.scissorOffset.x << 1) - 342);
+  yOff = ((bpmemory.scissorOffset.y << 1) - 342);
   int vxCenter = xfmemory.viewport.xOrig - 342;
   int vyCenter = xfmemory.viewport.yOrig - 342;
   // Subtract for x and add for y since y height is usually negative
@@ -174,6 +174,10 @@ bool Statistics::ScissorInfo::operator==(const ScissorInfo& other) const
 
 void Statistics::DisplayScissor()
 {
+  // TODO: This is the same position as the regular statistics text
+  const float scale = ImGui::GetIO().DisplayFramebufferScale.x;
+  ImGui::SetNextWindowPos(ImVec2(10.0f * scale, 10.0f * scale), ImGuiCond_FirstUseEver);
+
   if (!ImGui::Begin("Scissor Rectangles", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
   {
     ImGui::End();
@@ -216,17 +220,39 @@ void Statistics::DisplayScissor()
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
   ImVec2 p = ImGui::GetCursorScreenPos();
+  ImGui::Dummy(ImVec2(1024 * 3 / scissor_scale, 1024 * 3 / scissor_scale));
+
+  constexpr int DRAW_START = -1024;
+  // constexpr int DRAW_START = -2048;
+  constexpr int DRAW_END = DRAW_START + 3 * 1024;
 
   const auto vec = [&](int x, int y) {
-    return ImVec2(p.x + (float(x + 1024) / scissor_scale), p.y + (float(y + 1024) / scissor_scale));
+    return ImVec2(p.x + (float(x - DRAW_START) / scissor_scale),
+                  p.y + (float(y - DRAW_START) / scissor_scale));
   };
 
-  // draw_list->AddRect(vec(-1024, -1024), vec(1024, 1024), IM_COL32(255, 255, 255, 255));
-  draw_list->AddLine(vec(0, -1024), vec(0, 2048), IM_COL32(128, 128, 128, 255));
-  draw_list->AddLine(vec(-1024, 0), vec(2048, 0), IM_COL32(128, 128, 128, 255));
-  draw_list->AddLine(vec(1024, -1024), vec(1024, 2048), IM_COL32(64, 64, 64, 255));
-  draw_list->AddLine(vec(-1024, 1024), vec(2048, 1024), IM_COL32(64, 64, 64, 255));
+  // First draw half-rectangles for copied EFB regions
+  for (int x = DRAW_START; x < DRAW_END; x += 1024)
+  {
+    for (int y = DRAW_START; y < DRAW_END; y += 1024)
+    {
+      if (x != 0 || y != 0)
+      {
+        draw_list->AddLine(vec(x, y + EFB_HEIGHT), vec(x + EFB_WIDTH, y + EFB_HEIGHT),
+                           IM_COL32(64, 64, 64, 255));
+        draw_list->AddLine(vec(x + EFB_WIDTH, y), vec(x + EFB_WIDTH, y + EFB_HEIGHT),
+                           IM_COL32(64, 64, 64, 255));
+      }
+    }
+  }
 
+  // Now draw gridlines (over those rectangles)
+  for (int x = DRAW_START; x <= DRAW_END; x += 1024)
+    draw_list->AddLine(vec(x, DRAW_START), vec(x, DRAW_END), IM_COL32(128, 128, 128, 255));
+  for (int y = DRAW_START; y <= DRAW_END; y += 1024)
+    draw_list->AddLine(vec(DRAW_START, y), vec(DRAW_END, y), IM_COL32(128, 128, 128, 255));
+
+  // Now draw a white rectangle for the real EFB region
   draw_list->AddRect(vec(0, 0), vec(EFB_WIDTH, EFB_HEIGHT), IM_COL32(255, 255, 255, 255));
 
   const auto draw_x = [&](int x, int y, int size, ImU32 col) {
@@ -239,9 +265,11 @@ void Statistics::DisplayScissor()
       IM_COL32(0, 255, 255, 255), IM_COL32(0, 0, 255, 255),   IM_COL32(255, 0, 255, 255),
   };
   const auto draw_scissor = [&](const ScissorInfo& info, ImU32 col) {
-    /*ImGui::Text("x0 %d y0 %d x1 %d y1 %d xOff %d yOff %d", info.x0, info.y0, info.x1, info.y1,
+    /*
+    ImGui::Text("x0 %d y0 %d x1 %d y1 %d xOff %d yOff %d", info.x0, info.y0, info.x1, info.y1,
                 info.xOff, info.yOff);
-    ImGui::Text("vx0 %d vy0 %d vx1 %d vy1 %d", info.vx0, info.vy0, info.vx1, info.vy1);*/
+    ImGui::Text("vx0 %d vy0 %d vx1 %d vy1 %d", info.vx0, info.vy0, info.vx1, info.vy1);
+    */
 
     if (show_scissors)
     {
@@ -268,6 +296,5 @@ void Statistics::DisplayScissor()
     draw_scissor(scissor_info[i], COLORS[i % scissor_info.size()]);
   }
 
-  ImGui::Dummy(ImVec2(1024 * 3 / scissor_scale, 1024 * 3 / scissor_scale));
   ImGui::End();
 }

@@ -1364,7 +1364,18 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
         DolphinAnalytics::Instance().ReportPerformanceInfo(std::move(perf_sample));
 
         if (IsFrameDumping())
-          DumpCurrentFrame(xfb_entry->texture.get(), xfb_rect, ticks, m_frame_count);
+        {
+          // TODO: Setting for this
+          // DumpCurrentFrame(xfb_entry->texture.get(), xfb_rect, ticks, m_frame_count);
+
+          // NOTE: This fails if the window resolution is smaller than the actual resolution for the
+          // current IR.  I'm not entirely sure why, but probably using the framebuffer like this
+          // just isn't correct. Use 1x IR for the most part.
+          // Also, this completely fails on OpenGL and D3D12, while on Vulkan colors are incorrect
+          // due to the color format being BGRA8 instead of RGBA8.  Use D3D11 for best results.
+          DumpCurrentFrame(g_renderer->GetCurrentFramebuffer()->GetColorAttachment(),
+                           g_renderer->GetCurrentFramebuffer()->GetRect(), ticks, m_frame_count);
+        }
 
         // Begin new frame
         m_frame_count++;

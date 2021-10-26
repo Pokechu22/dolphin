@@ -50,6 +50,7 @@ struct Statistics
   bool allow_duplicate_scissors = false;
   bool show_scissors = true;
   bool show_viewports = false;
+  bool show_text = true;
 
   struct ThisFrame
   {

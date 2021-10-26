@@ -186,37 +186,38 @@ void Statistics::DisplayScissor()
 
   if (ImGui::TreeNode("Options"))
   {
-    ImGui::Checkbox("Allow duplicates", &allow_duplicate_scissors);
-    ImGui::Checkbox("Show scissors", &show_scissors);
-    ImGui::Checkbox("Show viewports", &show_viewports);
-    // TODO: Scale is limited only because things explode when the scale is too big with auto-resize
-    // enabled
-    ImGui::DragInt("Scale", &scissor_scale, 1, 8, 16);
+    ImGui::Checkbox("Allow Duplicates", &allow_duplicate_scissors);
+    ImGui::Checkbox("Show Scissors", &show_scissors);
+    ImGui::Checkbox("Show Viewports", &show_viewports);
+    ImGui::Checkbox("Show Text", &show_text);
+    ImGui::DragInt("Scale", &scissor_scale, .2f, 1, 16);
     ImGui::TreePop();
   }
 
+  ImGui::BeginDisabled(current_scissor == 0);
   if (ImGui::ArrowButton("##left", ImGuiDir_Left))
   {
     current_scissor--;
-    if (current_scissor < 0)
-      current_scissor = 0;
   }
-  ImGui::SameLine(0.0f);
+  ImGui::EndDisabled();
+  ImGui::SameLine();
+  ImGui::BeginDisabled(current_scissor >= scissor_info.size());
   if (ImGui::ArrowButton("##right", ImGuiDir_Right))
   {
     current_scissor++;
     if (current_scissor > scissor_info.size())
     {
-      current_scissor = static_cast<int>(scissor_info.size());
+      current_scissor = scissor_info.size();
     }
   }
+  ImGui::EndDisabled();
   ImGui::SameLine();
   if (current_scissor == 0)
-    ImGui::Text("Displayed Scissor: All %d", scissor_info.size());
+    ImGui::Text("Displaying all %zu rectangles", scissor_info.size());
   else if (current_scissor <= scissor_info.size())
-    ImGui::Text("Displayed Scissor: %d / %d", current_scissor, scissor_info.size());
+    ImGui::Text("Displaying rectangle %zu / %zu", current_scissor, scissor_info.size());
   else
-    ImGui::Text("Displayed Scissor: %d / %d (OoB)", current_scissor, scissor_info.size());
+    ImGui::Text("Displaying rectangle %zu / %zu (OoB)", current_scissor, scissor_info.size());
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
   ImVec2 p = ImGui::GetCursorScreenPos();
@@ -226,12 +227,12 @@ void Statistics::DisplayScissor()
   // constexpr int DRAW_START = -2048;
   constexpr int DRAW_END = DRAW_START + 3 * 1024;
 
-  const auto vec = [&](int x, int y) {
-    return ImVec2(p.x + (float(x - DRAW_START) / scissor_scale),
-                  p.y + (float(y - DRAW_START) / scissor_scale));
+  const auto vec = [&](int x, int y, int xoff = 0, int yoff = 0) {
+    return ImVec2(p.x + (float(x - DRAW_START) / scissor_scale) + xoff,
+                  p.y + (float(y - DRAW_START) / scissor_scale) + yoff);
   };
 
-  // First draw half-rectangles for copied EFB regions
+  // First draw half-rectangles for copied EFB regions, along with the coordinates
   for (int x = DRAW_START; x < DRAW_END; x += 1024)
   {
     for (int y = DRAW_START; y < DRAW_END; y += 1024)
@@ -243,6 +244,8 @@ void Statistics::DisplayScissor()
         draw_list->AddLine(vec(x + EFB_WIDTH, y), vec(x + EFB_WIDTH, y + EFB_HEIGHT),
                            IM_COL32(64, 64, 64, 255));
       }
+      auto coord = fmt::format("{:+}\n{:+}", x, y);
+      draw_list->AddText(vec(x, y, +3, +2), IM_COL32(64, 64, 64, 255), coord.data());
     }
   }
 
@@ -256,44 +259,55 @@ void Statistics::DisplayScissor()
   draw_list->AddRect(vec(0, 0), vec(EFB_WIDTH, EFB_HEIGHT), IM_COL32(255, 255, 255, 255));
 
   const auto draw_x = [&](int x, int y, int size, ImU32 col) {
-    ImVec2 pos = vec(x, y);
-    draw_list->AddLine(ImVec2(pos.x - size, pos.y - size), ImVec2(pos.x + size, pos.y + size), col);
-    draw_list->AddLine(ImVec2(pos.x - size, pos.y + size), ImVec2(pos.x + size, pos.y - size), col);
+    draw_list->AddLine(vec(x, y, -size, -size), vec(x, y, +size, +size), col);
+    draw_list->AddLine(vec(x, y, -size, +size), vec(x, y, +size, -size), col);
   };
   static constexpr std::array<ImU32, 6> COLORS = {
       IM_COL32(255, 0, 0, 255),   IM_COL32(255, 255, 0, 255), IM_COL32(0, 255, 0, 255),
       IM_COL32(0, 255, 255, 255), IM_COL32(0, 0, 255, 255),   IM_COL32(255, 0, 255, 255),
   };
-  const auto draw_scissor = [&](const ScissorInfo& info, ImU32 col) {
-    /*
-    ImGui::Text("x0 %d y0 %d x1 %d y1 %d xOff %d yOff %d", info.x0, info.y0, info.x1, info.y1,
-                info.xOff, info.yOff);
-    ImGui::Text("vx0 %d vy0 %d vx1 %d vy1 %d", info.vx0, info.vy0, info.vx1, info.vy1);
-    */
-
+  const auto draw_scissor = [&](size_t index) {
+    const ScissorInfo& info = scissor_info[index];
+    const ImU32 col = COLORS[index % COLORS.size()];
     if (show_scissors)
     {
       draw_x(-info.xOff, -info.yOff, 4, col);
       draw_list->AddRect(vec(info.x0 - info.xOff, info.y0 - info.yOff),
                          vec(info.x1 - info.xOff, info.y1 - info.yOff), col);
+      if (show_text)
+      {
+        ImGui::Text("Scissor %zu: x0 %d y0 %d x1 %d y1 %d xOff %d yOff %d", index + 1, info.x0,
+                    info.y0, info.x1, info.y1, info.xOff, info.yOff);
+      }
     }
     if (show_viewports)
     {
       draw_list->AddRect(vec(info.vx0, info.vy0), vec(info.vx1, info.vy1), col);
+      if (show_text)
+      {
+        ImGui::Text("Viewport %zu: vx0 %d vy0 %d vx1 %d vy1 %d", index + 1, info.vx0, info.vy0,
+                    info.vx1, info.vy1);
+      }
     }
   };
 
   if (current_scissor == 0)
   {
     for (size_t i = 0; i < scissor_info.size(); i++)
-      draw_scissor(scissor_info[i], COLORS[i % scissor_info.size()]);
+      draw_scissor(i);
   }
   else if (current_scissor <= scissor_info.size())
   {
     // This bounds check is needed since we only clamp when changing the value; different frames may
     // have different numbers
-    size_t i = current_scissor - 1;
-    draw_scissor(scissor_info[i], COLORS[i % scissor_info.size()]);
+    draw_scissor(current_scissor - 1);
+  }
+  else if (show_text)
+  {
+    if (show_scissors)
+      ImGui::Text("Scissor %zu: Does not exist", current_scissor);
+    if (show_viewports)
+      ImGui::Text("Viewport %zu: Does not exist", current_scissor);
   }
 
   ImGui::End();

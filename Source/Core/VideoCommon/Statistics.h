@@ -45,10 +45,10 @@ struct Statistics
       ViewportInfo(const XFMemory& xfmemory);
       bool operator==(const ViewportInfo& other) const;
 
-      int vx0;
-      int vy0;
-      int vx1;
-      int vy1;
+      float vx0;
+      float vy0;
+      float vx1;
+      float vy1;
     };
 
     RectangleInfo(const BPMemory& bpmemory, const XFMemory& xfmemory);

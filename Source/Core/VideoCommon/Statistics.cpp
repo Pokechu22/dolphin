@@ -169,8 +169,8 @@ bool Statistics::RectangleInfo::ScissorInfo::operator==(const ScissorInfo& other
 
 Statistics::RectangleInfo::ViewportInfo::ViewportInfo(const XFMemory& xfmemory)
 {
-  int vxCenter = xfmemory.viewport.xOrig - 342;
-  int vyCenter = xfmemory.viewport.yOrig - 342;
+  float vxCenter = xfmemory.viewport.xOrig - 342;
+  float vyCenter = xfmemory.viewport.yOrig - 342;
   // Subtract for x and add for y since y height is usually negative
   vx0 = vxCenter - xfmemory.viewport.wd;
   vy0 = vyCenter + xfmemory.viewport.ht;
@@ -313,7 +313,7 @@ void Statistics::DisplayScissor()
       draw_list->AddRect(vec(info.vx0, info.vy0), vec(info.vx1, info.vy1), col);
       if (show_text)
       {
-        ImGui::Text("Viewport %zu: vx0 %d vy0 %d vx1 %d vy1 %d", index + 1, info.vx0, info.vy0,
+        ImGui::Text("Viewport %zu: vx0 %.1f vy0 %.1f vx1 %.1f vy1 %.1f", index + 1, info.vx0, info.vy0,
                     info.vx1, info.vy1);
       }
     }

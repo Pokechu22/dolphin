@@ -128,7 +128,7 @@ void Statistics::DisplayProj() const
 
 void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemory)
 {
-  ScissorInfo info{bpmemory, xfmemory};
+  RectangleInfo info{bpmemory, xfmemory};
   bool add;
   if (scissor_info.empty())
   {
@@ -139,18 +139,20 @@ void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemo
     if (allow_duplicate_scissors)
     {
       // Only check the last entry
-      add = scissor_info.back() != info;
+      add = !scissor_info.back().Matches(info, show_scissors, show_viewports);
     }
     else
     {
-      add = std::find(scissor_info.begin(), scissor_info.end(), info) == scissor_info.end();
+      add = std::find_if(scissor_info.begin(), scissor_info.end(), [&](auto& i) {
+              return i.Matches(info, show_scissors, show_viewports);
+            }) == scissor_info.end();
     }
   }
   if (add)
     scissor_info.push_back(std::move(info));
 }
 
-Statistics::ScissorInfo::ScissorInfo(const BPMemory& bpmemory, const XFMemory& xfmemory)
+Statistics::RectangleInfo::ScissorInfo::ScissorInfo(const BPMemory& bpmemory)
 {
   x0 = bpmemory.scissorTL.x - 342;
   y0 = bpmemory.scissorTL.y - 342;
@@ -158,6 +160,15 @@ Statistics::ScissorInfo::ScissorInfo(const BPMemory& bpmemory, const XFMemory& x
   y1 = bpmemory.scissorBR.y - 342 + 1;
   xOff = ((bpmemory.scissorOffset.x << 1) - 342);
   yOff = ((bpmemory.scissorOffset.y << 1) - 342);
+}
+
+bool Statistics::RectangleInfo::ScissorInfo::operator==(const ScissorInfo& other) const
+{
+  return memcmp(this, &other, sizeof(ScissorInfo)) == 0;
+}
+
+Statistics::RectangleInfo::ViewportInfo::ViewportInfo(const XFMemory& xfmemory)
+{
   int vxCenter = xfmemory.viewport.xOrig - 342;
   int vyCenter = xfmemory.viewport.yOrig - 342;
   // Subtract for x and add for y since y height is usually negative
@@ -167,9 +178,24 @@ Statistics::ScissorInfo::ScissorInfo(const BPMemory& bpmemory, const XFMemory& x
   vy1 = vyCenter - xfmemory.viewport.ht;
 }
 
-bool Statistics::ScissorInfo::operator==(const ScissorInfo& other) const
+bool Statistics::RectangleInfo::ViewportInfo::operator==(const ViewportInfo& other) const
 {
-  return memcmp(this, &other, sizeof(ScissorInfo)) == 0;
+  return memcmp(this, &other, sizeof(ViewportInfo)) == 0;
+}
+
+Statistics::RectangleInfo::RectangleInfo(const BPMemory& bpmemory, const XFMemory& xfmemory)
+    : scissor{bpmemory}, viewport{xfmemory}
+{
+}
+
+bool Statistics::RectangleInfo::Matches(const RectangleInfo& other, bool show_scissors,
+                                        bool show_viewports) const
+{
+  if (show_scissors && (scissor != other.scissor))
+    return false;
+  if (show_viewports && (viewport != other.viewport))
+    return false;
+  return true;
 }
 
 void Statistics::DisplayScissor()
@@ -267,10 +293,11 @@ void Statistics::DisplayScissor()
       IM_COL32(0, 255, 255, 255), IM_COL32(0, 0, 255, 255),   IM_COL32(255, 0, 255, 255),
   };
   const auto draw_scissor = [&](size_t index) {
-    const ScissorInfo& info = scissor_info[index];
+    const RectangleInfo& rect_info = scissor_info[index];
     const ImU32 col = COLORS[index % COLORS.size()];
     if (show_scissors)
     {
+      const auto& info = rect_info.scissor;
       draw_x(-info.xOff, -info.yOff, 4, col);
       draw_list->AddRect(vec(info.x0 - info.xOff, info.y0 - info.yOff),
                          vec(info.x1 - info.xOff, info.y1 - info.yOff), col);
@@ -282,6 +309,7 @@ void Statistics::DisplayScissor()
     }
     if (show_viewports)
     {
+      const auto& info = rect_info.viewport;
       draw_list->AddRect(vec(info.vx0, info.vy0), vec(info.vx1, info.vy1), col);
       if (show_text)
       {

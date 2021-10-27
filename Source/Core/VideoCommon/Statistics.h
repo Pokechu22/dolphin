@@ -26,25 +26,39 @@ struct Statistics
   std::array<float, 16> gproj;
   std::array<float, 16> g2proj;
 
-  struct ScissorInfo
+  struct RectangleInfo
   {
-    ScissorInfo(const BPMemory& bpmemory, const XFMemory& xfmemory);
-    bool operator==(const ScissorInfo& other) const;
+    struct ScissorInfo
+    {
+      ScissorInfo(const BPMemory& bpmemory);
+      bool operator==(const ScissorInfo& other) const;
 
-    int x0;
-    int y0;
-    int x1;
-    int y1;
-    int xOff;
-    int yOff;
+      int x0;
+      int y0;
+      int x1;
+      int y1;
+      int xOff;
+      int yOff;
+    };
+    struct ViewportInfo
+    {
+      ViewportInfo(const XFMemory& xfmemory);
+      bool operator==(const ViewportInfo& other) const;
 
-    int vx0;
-    int vy0;
-    int vx1;
-    int vy1;
+      int vx0;
+      int vy0;
+      int vx1;
+      int vy1;
+    };
+
+    RectangleInfo(const BPMemory& bpmemory, const XFMemory& xfmemory);
+    bool Matches(const RectangleInfo& other, bool show_scissors, bool show_viewports) const;
+
+    ScissorInfo scissor;
+    ViewportInfo viewport;
   };
 
-  std::vector<ScissorInfo> scissor_info;
+  std::vector<RectangleInfo> scissor_info;
   size_t current_scissor = 0;  // 0 => all, otherwise index + 1
   int scissor_scale = 10;
   bool allow_duplicate_scissors = false;

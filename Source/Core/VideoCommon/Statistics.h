@@ -39,6 +39,9 @@ struct Statistics
       int y1;
       int xOff;
       int yOff;
+      // Raw/original versions
+      int rxOff;
+      int ryOff;
     };
     struct ViewportInfo
     {

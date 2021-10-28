@@ -160,6 +160,8 @@ Statistics::RectangleInfo::ScissorInfo::ScissorInfo(const BPMemory& bpmemory)
   y1 = bpmemory.scissorBR.y - 342 + 1;
   xOff = ((bpmemory.scissorOffset.x << 1) - 342);
   yOff = ((bpmemory.scissorOffset.y << 1) - 342);
+  rxOff = bpmemory.scissorOffset.x;
+  ryOff = bpmemory.scissorOffset.y;
 }
 
 bool Statistics::RectangleInfo::ScissorInfo::operator==(const ScissorInfo& other) const
@@ -239,7 +241,7 @@ void Statistics::DisplayScissor()
   ImGui::EndDisabled();
   ImGui::SameLine();
   if (current_scissor == 0)
-    ImGui::Text("Displaying all %zu rectangles", scissor_info.size());
+    ImGui::Text("Displaying all %zu rectangle(s)", scissor_info.size());
   else if (current_scissor <= scissor_info.size())
     ImGui::Text("Displaying rectangle %zu / %zu", current_scissor, scissor_info.size());
   else
@@ -258,6 +260,9 @@ void Statistics::DisplayScissor()
                   p.y + (float(y - DRAW_START) / scissor_scale) + yoff);
   };
 
+  const auto white = ImGui::GetColorU32(ImVec4(1.f, 1.f, 1.f, 1.f));
+  const auto light_grey = ImGui::GetColorU32(ImVec4(.5f, .5f, .5f, 1.f));
+  const auto dark_grey = ImGui::GetColorU32(ImVec4(.25f, .25f, .25f, 1.f));
   // First draw half-rectangles for copied EFB regions, along with the coordinates
   for (int x = DRAW_START; x < DRAW_END; x += 1024)
   {
@@ -265,70 +270,154 @@ void Statistics::DisplayScissor()
     {
       if (x != 0 || y != 0)
       {
-        draw_list->AddLine(vec(x, y + EFB_HEIGHT), vec(x + EFB_WIDTH, y + EFB_HEIGHT),
-                           IM_COL32(64, 64, 64, 255));
-        draw_list->AddLine(vec(x + EFB_WIDTH, y), vec(x + EFB_WIDTH, y + EFB_HEIGHT),
-                           IM_COL32(64, 64, 64, 255));
+        draw_list->AddLine(vec(x, y + EFB_HEIGHT), vec(x + EFB_WIDTH, y + EFB_HEIGHT), dark_grey);
+        draw_list->AddLine(vec(x + EFB_WIDTH, y), vec(x + EFB_WIDTH, y + EFB_HEIGHT), dark_grey);
       }
       auto coord = fmt::format("{:+}\n{:+}", x, y);
-      draw_list->AddText(vec(x, y, +3, +2), IM_COL32(64, 64, 64, 255), coord.data());
+      draw_list->AddText(vec(x, y, +3, +2), dark_grey, coord.data());
     }
   }
 
   // Now draw gridlines (over those rectangles)
   for (int x = DRAW_START; x <= DRAW_END; x += 1024)
-    draw_list->AddLine(vec(x, DRAW_START), vec(x, DRAW_END), IM_COL32(128, 128, 128, 255));
+    draw_list->AddLine(vec(x, DRAW_START), vec(x, DRAW_END), light_grey);
   for (int y = DRAW_START; y <= DRAW_END; y += 1024)
-    draw_list->AddLine(vec(DRAW_START, y), vec(DRAW_END, y), IM_COL32(128, 128, 128, 255));
+    draw_list->AddLine(vec(DRAW_START, y), vec(DRAW_END, y), light_grey);
 
   // Now draw a white rectangle for the real EFB region
-  draw_list->AddRect(vec(0, 0), vec(EFB_WIDTH, EFB_HEIGHT), IM_COL32(255, 255, 255, 255));
+  draw_list->AddRect(vec(0, 0), vec(EFB_WIDTH, EFB_HEIGHT), white);
 
   const auto draw_x = [&](int x, int y, int size, ImU32 col) {
     draw_list->AddLine(vec(x, y, -size, -size), vec(x, y, +size, +size), col);
     draw_list->AddLine(vec(x, y, -size, +size), vec(x, y, +size, -size), col);
   };
-  static constexpr std::array<ImU32, 6> COLORS = {
-      IM_COL32(255, 0, 0, 255),   IM_COL32(255, 255, 0, 255), IM_COL32(0, 255, 0, 255),
-      IM_COL32(0, 255, 255, 255), IM_COL32(0, 0, 255, 255),   IM_COL32(255, 0, 255, 255),
+  static std::array<ImVec4, 6> COLORS = {
+      ImVec4(1, 0, 0, 1), ImVec4(1, 1, 0, 1), ImVec4(0, 1, 0, 1),
+      ImVec4(0, 1, 1, 1), ImVec4(0, 0, 1, 1), ImVec4(1, 0, 1, 1),
   };
   const auto draw_scissor = [&](size_t index) {
     const RectangleInfo& rect_info = scissor_info[index];
-    const ImU32 col = COLORS[index % COLORS.size()];
+    const ImU32 col = ImGui::GetColorU32(COLORS[index % COLORS.size()]);
     if (show_scissors)
     {
       const auto& info = rect_info.scissor;
       draw_x(-info.xOff, -info.yOff, 4, col);
       draw_list->AddRect(vec(info.x0 - info.xOff, info.y0 - info.yOff),
                          vec(info.x1 - info.xOff, info.y1 - info.yOff), col);
-      if (show_text)
-      {
-        ImGui::Text("Scissor %zu: x0 %d y0 %d x1 %d y1 %d xOff %d yOff %d", index + 1, info.x0,
-                    info.y0, info.x1, info.y1, info.xOff, info.yOff);
-      }
     }
     if (show_viewports)
     {
       const auto& info = rect_info.viewport;
       draw_list->AddRect(vec(info.vx0, info.vy0), vec(info.vx1, info.vy1), col);
-      if (show_text)
-      {
-        ImGui::Text("Viewport %zu: vx0 %.1f vy0 %.1f vx1 %.1f vy1 %.1f", index + 1, info.vx0, info.vy0,
-                    info.vx1, info.vy1);
-      }
     }
   };
-
+  constexpr auto NUM_SCISSOR_COLUMNS = 9;
+  const auto draw_scissor_table_header = [&]() {
+    ImGui::TableSetupColumn("#");
+    ImGui::TableSetupColumn("x0");
+    ImGui::TableSetupColumn("y0");
+    ImGui::TableSetupColumn("x1");
+    ImGui::TableSetupColumn("y1");
+    ImGui::TableSetupColumn("xOff");
+    ImGui::TableSetupColumn("yOff");
+    ImGui::TableSetupColumn("fx0");
+    ImGui::TableSetupColumn("fy0");
+    ImGui::TableHeadersRow();
+  };
+  const auto draw_scissor_table_row = [&](size_t index) {
+    const auto& info = scissor_info[index].scissor;
+    ImGui::TableNextColumn();
+    ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.x0);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.y0);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.x1);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.y1);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d (%d)", info.xOff, info.rxOff);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d (%d)", info.yOff, info.ryOff);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.x0 - info.xOff);
+    ImGui::TableNextColumn();
+    ImGui::Text("%d", info.y0 - info.yOff);
+  };
+  constexpr auto NUM_VIEWPORT_COLUMNS = 5;
+  const auto draw_viewport_table_header = [&]() {
+    ImGui::TableSetupColumn("#");
+    ImGui::TableSetupColumn("vx0");
+    ImGui::TableSetupColumn("vy0");
+    ImGui::TableSetupColumn("vx1");
+    ImGui::TableSetupColumn("vy1");
+    ImGui::TableHeadersRow();
+  };
+  const auto draw_viewport_table_row = [&](size_t index) {
+    const auto& info = scissor_info[index].viewport;
+    ImGui::TableNextColumn();
+    ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
+    ImGui::TableNextColumn();
+    ImGui::Text("%.1f", info.vx0);
+    ImGui::TableNextColumn();
+    ImGui::Text("%.1f", info.vy0);
+    ImGui::TableNextColumn();
+    ImGui::Text("%.1f", info.vx1);
+    ImGui::TableNextColumn();
+    ImGui::Text("%.1f", info.vy1);
+  };
   if (current_scissor == 0)
   {
     for (size_t i = 0; i < scissor_info.size(); i++)
       draw_scissor(i);
+    if (show_text)
+    {
+      if (show_scissors)
+      {
+        if (ImGui::BeginTable("Scissors", NUM_SCISSOR_COLUMNS))
+        {
+          draw_scissor_table_header();
+          for (size_t i = 0; i < scissor_info.size(); i++)
+            draw_scissor_table_row(i);
+          ImGui::EndTable();
+        }
+      }
+      if (show_viewports)
+      {
+        if (ImGui::BeginTable("Viewports", NUM_VIEWPORT_COLUMNS))
+        {
+          draw_viewport_table_header();
+          for (size_t i = 0; i < scissor_info.size(); i++)
+            draw_viewport_table_row(i);
+          ImGui::EndTable();
+        }
+      }
+    }
   }
   else if (current_scissor <= scissor_info.size())
   {
     // This bounds check is needed since we only clamp when changing the value; different frames may
     // have different numbers
     draw_scissor(current_scissor - 1);
+    if (show_text)
+    {
+      if (show_scissors)
+      {
+        if (ImGui::BeginTable("Scissors", NUM_SCISSOR_COLUMNS))
+        {
+          draw_scissor_table_header();
+          draw_scissor_table_row(current_scissor - 1);
+          ImGui::EndTable();
+        }
+        if (ImGui::BeginTable("Viewports", NUM_VIEWPORT_COLUMNS))
+        {
+          draw_viewport_table_header();
+          draw_viewport_table_row(current_scissor - 1);
+          ImGui::EndTable();
+        }
+      }
+    }
   }
   else if (show_text)
   {

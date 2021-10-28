@@ -154,19 +154,27 @@ void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemo
 
 Statistics::RectangleInfo::ScissorInfo::ScissorInfo(const BPMemory& bpmemory)
 {
-  x0 = bpmemory.scissorTL.x - 342;
-  y0 = bpmemory.scissorTL.y - 342;
-  x1 = bpmemory.scissorBR.x - 342 + 1;
-  y1 = bpmemory.scissorBR.y - 342 + 1;
-  xOff = ((bpmemory.scissorOffset.x << 1) - 342);
-  yOff = ((bpmemory.scissorOffset.y << 1) - 342);
-  rxOff = bpmemory.scissorOffset.x;
-  ryOff = bpmemory.scissorOffset.y;
+  x0 = bpmemory.scissorTL.x;
+  y0 = bpmemory.scissorTL.y;
+  x1 = bpmemory.scissorBR.x;
+  y1 = bpmemory.scissorBR.y;
+  xOff = bpmemory.scissorOffset.x;
+  yOff = bpmemory.scissorOffset.y;
 }
 
 bool Statistics::RectangleInfo::ScissorInfo::operator==(const ScissorInfo& other) const
 {
   return memcmp(this, &other, sizeof(ScissorInfo)) == 0;
+}
+
+int Statistics::RectangleInfo::ScissorInfo::XOff() const
+{
+  return (xOff << 1) - 342;
+}
+
+int Statistics::RectangleInfo::ScissorInfo::YOff() const
+{
+  return (yOff << 1) - 342;
 }
 
 Statistics::RectangleInfo::ViewportInfo::ViewportInfo(const XFMemory& xfmemory)
@@ -216,6 +224,9 @@ void Statistics::DisplayScissor()
   {
     ImGui::Checkbox("Allow Duplicates", &allow_duplicate_scissors);
     ImGui::Checkbox("Show Scissors", &show_scissors);
+    ImGui::BeginDisabled(!show_scissors);
+    ImGui::Checkbox("Show Raw Values", &show_raw_scissors);
+    ImGui::EndDisabled();
     ImGui::Checkbox("Show Viewports", &show_viewports);
     ImGui::Checkbox("Show Text", &show_text);
     ImGui::DragInt("Scale", &scissor_scale, .2f, 1, 16);
@@ -301,9 +312,9 @@ void Statistics::DisplayScissor()
     if (show_scissors)
     {
       const auto& info = rect_info.scissor;
-      draw_x(-info.xOff, -info.yOff, 4, col);
-      draw_list->AddRect(vec(info.x0 - info.xOff, info.y0 - info.yOff),
-                         vec(info.x1 - info.xOff, info.y1 - info.yOff), col);
+      draw_x(-info.XOff(), -info.YOff(), 4, col);
+      draw_list->AddRect(vec(info.X0() - info.XOff(), info.Y0() - info.YOff()),
+                         vec(info.X1() - info.XOff(), info.Y1() - info.YOff()), col);
     }
     if (show_viewports)
     {
@@ -329,21 +340,40 @@ void Statistics::DisplayScissor()
     ImGui::TableNextColumn();
     ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.x0);
+    ImGui::Text("%d", info.X0());
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.y0);
+    ImGui::Text("%d", info.Y0());
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.x1);
+    ImGui::Text("%d", info.X1());
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.y1);
+    ImGui::Text("%d", info.Y1());
     ImGui::TableNextColumn();
-    ImGui::Text("%d (%d)", info.xOff, info.rxOff);
+    ImGui::Text("%d", info.XOff());
     ImGui::TableNextColumn();
-    ImGui::Text("%d (%d)", info.yOff, info.ryOff);
+    ImGui::Text("%d", info.YOff());
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.x0 - info.xOff);
+    ImGui::Text("%d", info.X0() - info.XOff());
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.y0 - info.yOff);
+    ImGui::Text("%d", info.Y0() - info.YOff());
+    if (show_raw_scissors)
+    {
+      ImGui::TableNextColumn();
+      ImGui::TextColored(COLORS[index % COLORS.size()], "Raw");
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.x0);
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.y0);
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.x1);
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.y1);
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.xOff);
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", info.yOff);
+      ImGui::TableNextColumn();
+      ImGui::TableNextColumn();
+    }
   };
   constexpr auto NUM_VIEWPORT_COLUMNS = 5;
   const auto draw_viewport_table_header = [&]() {

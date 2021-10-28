@@ -39,9 +39,16 @@ struct Statistics
       int y1;
       int xOff;
       int yOff;
-      // Raw/original versions
-      int rxOff;
-      int ryOff;
+
+      constexpr int X0() const { return x0 - 342; }
+      constexpr int Y0() const { return y0 - 342; }
+      constexpr int X1() const { return x1 - 342 + 1; }
+      constexpr int Y1() const { return y1 - 342 + 1; }
+      // These are in the source file so I can change them without rebuilding
+      // constexpr int XOff() const { return (xOff << 1) - 342; }
+      // constexpr int YOff() const { return (yOff << 1) - 342; }
+      int XOff() const;
+      int YOff() const;
     };
     struct ViewportInfo
     {
@@ -66,6 +73,7 @@ struct Statistics
   int scissor_scale = 10;
   bool allow_duplicate_scissors = false;
   bool show_scissors = true;
+  bool show_raw_scissors = true;
   bool show_viewports = false;
   bool show_text = true;
 

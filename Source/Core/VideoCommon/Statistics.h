@@ -71,6 +71,7 @@ struct Statistics
   std::vector<RectangleInfo> scissor_info;
   size_t current_scissor = 0;  // 0 => all, otherwise index + 1
   int scissor_scale = 10;
+  int scissor_expected_count = 0;
   bool allow_duplicate_scissors = false;
   bool show_scissors = true;
   bool show_raw_scissors = true;

@@ -230,6 +230,7 @@ void Statistics::DisplayScissor()
     ImGui::Checkbox("Show Viewports", &show_viewports);
     ImGui::Checkbox("Show Text", &show_text);
     ImGui::DragInt("Scale", &scissor_scale, .2f, 1, 16);
+    ImGui::DragInt("Expected Scissor Count", &scissor_expected_count, .2f, 0, 16);
     ImGui::TreePop();
   }
 
@@ -375,6 +376,17 @@ void Statistics::DisplayScissor()
       ImGui::TableNextColumn();
     }
   };
+  const auto scissor_table_skip_row = [&](size_t index) {
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
+    if (show_raw_scissors)
+    {
+      ImGui::TableNextRow();
+      ImGui::TableNextColumn();
+      ImGui::TextColored(COLORS[index % COLORS.size()], "Raw");
+    }
+  };
   constexpr auto NUM_VIEWPORT_COLUMNS = 5;
   const auto draw_viewport_table_header = [&]() {
     ImGui::TableSetupColumn("#");
@@ -397,6 +409,11 @@ void Statistics::DisplayScissor()
     ImGui::TableNextColumn();
     ImGui::Text("%.1f", info.vy1);
   };
+  const auto viewport_table_skip_row = [&](size_t index) {
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
+  };
   if (current_scissor == 0)
   {
     for (size_t i = 0; i < scissor_info.size(); i++)
@@ -410,6 +427,8 @@ void Statistics::DisplayScissor()
           draw_scissor_table_header();
           for (size_t i = 0; i < scissor_info.size(); i++)
             draw_scissor_table_row(i);
+          for (size_t i = scissor_info.size(); i < scissor_expected_count; i++)
+            scissor_table_skip_row(i);
           ImGui::EndTable();
         }
       }
@@ -420,6 +439,8 @@ void Statistics::DisplayScissor()
           draw_viewport_table_header();
           for (size_t i = 0; i < scissor_info.size(); i++)
             draw_viewport_table_row(i);
+          for (size_t i = scissor_info.size(); i < scissor_expected_count; i++)
+            viewport_table_skip_row(i);
           ImGui::EndTable();
         }
       }

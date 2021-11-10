@@ -265,22 +265,23 @@ static void BuildBlock(s32 blockX, s32 blockY)
   }
 }
 
-void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v1,
-                           const OutputVertexData* v2)
+static void DrawTriangleFrontFace0(const OutputVertexData* v0, const OutputVertexData* v1,
+                                   const OutputVertexData* v2, int xOffOff, int yOffOff)
 {
-  INCSTAT(g_stats.this_frame.num_triangles_drawn);
+  const s32 xOff = ((bpmem.scissorOffset.x << 1) & 1023) - xOffOff;
+  const s32 yOff = ((bpmem.scissorOffset.y << 1) & 1023) - yOffOff;
 
   // adapted from http://devmaster.net/posts/6145/advanced-rasterization
 
   // 28.4 fixed-pou32 coordinates. rounded to nearest and adjusted to match hardware output
   // could also take floor and adjust -8
-  const s32 Y1 = iround(16.0f * v0->screenPosition[1]) - 9;
-  const s32 Y2 = iround(16.0f * v1->screenPosition[1]) - 9;
-  const s32 Y3 = iround(16.0f * v2->screenPosition[1]) - 9;
+  const s32 Y1 = iround(16.0f * (v0->screenPosition.y - yOff)) - 9;
+  const s32 Y2 = iround(16.0f * (v1->screenPosition.y - yOff)) - 9;
+  const s32 Y3 = iround(16.0f * (v2->screenPosition.y - yOff)) - 9;
 
-  const s32 X1 = iround(16.0f * v0->screenPosition[0]) - 9;
-  const s32 X2 = iround(16.0f * v1->screenPosition[0]) - 9;
-  const s32 X3 = iround(16.0f * v2->screenPosition[0]) - 9;
+  const s32 X1 = iround(16.0f * (v0->screenPosition.x - xOff)) - 9;
+  const s32 X2 = iround(16.0f * (v1->screenPosition.x - xOff)) - 9;
+  const s32 X3 = iround(16.0f * (v2->screenPosition.x - xOff)) - 9;
 
   // Deltas
   const s32 DX12 = X1 - X2;
@@ -307,22 +308,19 @@ void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v
   s32 maxy = (std::max(std::max(Y1, Y2), Y3) + 0xF) >> 4;
 
   // scissor
-  s32 xoff = bpmem.scissorOffset.x * 2;
-  s32 yoff = bpmem.scissorOffset.y * 2;
-
-  s32 scissorLeft = bpmem.scissorTL.x - xoff;
+  s32 scissorLeft = bpmem.scissorTL.x - xOff;
   if (scissorLeft < 0)
     scissorLeft = 0;
 
-  s32 scissorTop = bpmem.scissorTL.y - yoff;
+  s32 scissorTop = bpmem.scissorTL.y - yOff;
   if (scissorTop < 0)
     scissorTop = 0;
 
-  s32 scissorRight = bpmem.scissorBR.x - xoff + 1;
+  s32 scissorRight = bpmem.scissorBR.x - xOff + 1;
   if (scissorRight > s32(EFB_WIDTH))
     scissorRight = EFB_WIDTH;
 
-  s32 scissorBottom = bpmem.scissorBR.y - yoff + 1;
+  s32 scissorBottom = bpmem.scissorBR.y - yOff + 1;
   if (scissorBottom > s32(EFB_HEIGHT))
     scissorBottom = EFB_HEIGHT;
 
@@ -335,12 +333,12 @@ void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v
     return;
 
   // Setup slopes
-  float fltx1 = v0->screenPosition.x;
-  float flty1 = v0->screenPosition.y;
-  float fltdx31 = v2->screenPosition.x - fltx1;
-  float fltdx12 = fltx1 - v1->screenPosition.x;
-  float fltdy12 = flty1 - v1->screenPosition.y;
-  float fltdy31 = v2->screenPosition.y - flty1;
+  float fltx1 = v0->screenPosition.x - xOff;
+  float flty1 = v0->screenPosition.y - yOff;
+  float fltdx12 = v0->screenPosition.x - v1->screenPosition.x;
+  float fltdy12 = v0->screenPosition.y - v1->screenPosition.y;
+  float fltdx31 = v2->screenPosition.x - v0->screenPosition.x;
+  float fltdy31 = v2->screenPosition.y - v0->screenPosition.y;
 
   InitTriangle(fltx1, flty1, (X1 + 0xF) >> 4, (Y1 + 0xF) >> 4);
 
@@ -355,7 +353,7 @@ void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v
   // We're currently sloppy at this since we abort early if any of the culling/clipping/scissoring
   // tests fail.
   if (!bpmem.genMode.zfreeze || !g_ActiveConfig.bZFreeze)
-    InitSlope(&ZSlope, v0->screenPosition[2], v1->screenPosition[2], v2->screenPosition[2], fltdx31,
+    InitSlope(&ZSlope, v0->screenPosition.z, v1->screenPosition.z, v2->screenPosition.z, fltdx31,
               fltdx12, fltdy12, fltdy31);
 
   for (unsigned int i = 0; i < bpmem.genMode.numcolchans; i++)
@@ -467,5 +465,17 @@ void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v
       }
     }
   }
+}
+
+void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v1,
+                           const OutputVertexData* v2)
+{
+  INCSTAT(g_stats.this_frame.num_triangles_drawn);
+  // Emulate wrap-arounds for the scissor rectangle.  Normally only one of these will be visible and
+  // the rest will be off screen, but in some configurations multiple are visible.
+  DrawTriangleFrontFace0(v0, v1, v2, 0, 0);
+  DrawTriangleFrontFace0(v0, v1, v2, 0, 1024);
+  DrawTriangleFrontFace0(v0, v1, v2, 1024, 0);
+  DrawTriangleFrontFace0(v0, v1, v2, 1024, 1024);
 }
 }  // namespace Rasterizer

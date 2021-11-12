@@ -36,7 +36,42 @@ void SetGenerationMode()
   g_vertex_manager->SetRasterizationStateChanged();
 }
 
-void SetScissor()
+namespace
+{
+struct Range
+{
+  constexpr Range(char tag_, u32 offset_, u32 start_, u32 end_)
+      : tag(tag_), offset(offset_), start(start_), end(end_)
+  {
+  }
+  const char tag;
+  const int offset;
+  const int start;
+  const int end;
+};
+
+struct Rect
+{
+  constexpr Rect(Range x_range, Range y_range)
+      :  // Rectangle ctor takes x0, y0, x1, y1.
+        rect(x_range.start, y_range.start, x_range.end, y_range.end), x_off(x_range.offset),
+        y_off(y_range.offset), x_tag(x_range.tag), y_tag(y_range.tag)
+  {
+  }
+  const MathUtil::Rectangle<int> rect;
+  const int x_off;
+  const int y_off;
+  const int x_tag;
+  const int y_tag;
+
+  constexpr bool operator<(const Rect& other) const
+  {
+    return rect.GetWidth() * rect.GetHeight() < other.rect.GetWidth() * other.rect.GetHeight();
+  }
+};
+}  // namespace
+
+void SetScissorAndViewport()
 {
   /* NOTE: the minimum value here for the scissor rect is -342.
    * GX SDK functions internally add an offset of 342 to scissor coords to
@@ -59,25 +94,142 @@ void SetScissor()
    * for a scissor offset of (0, -464), the scissor offset register will be set to
    * (171, (-464 + 342) / 2 = -61).
    */
-  s32 xoff = bpmem.scissorOffset.x * 2;
-  s32 yoff = bpmem.scissorOffset.y * 2;
 
-  MathUtil::Rectangle<int> native_rc(bpmem.scissorTL.x - xoff, bpmem.scissorTL.y - yoff,
-                                     bpmem.scissorBR.x - xoff + 1, bpmem.scissorBR.y - yoff + 1);
-  native_rc.ClampUL(0, 0, EFB_WIDTH, EFB_HEIGHT);
+  // Range is [left, right] and [top, bottom] (closed intervals)
+  const int left = bpmem.scissorTL.x;
+  const int right = bpmem.scissorBR.x;
+  const int top = bpmem.scissorTL.y;
+  const int bottom = bpmem.scissorBR.y;
+  // These conditions are obvious
+  // What happens when these are violated hasn't yet been hardware tested
+  ASSERT(left <= right);
+  ASSERT(top <= bottom);
+  // Ensure the width/height are reasonable.  These also haven't been hardware tested.
+  // We want to be less than the width, not less or equal, as we use a closed interval.
+  ASSERT(right - left < EFB_WIDTH);
+  ASSERT(bottom - top < EFB_HEIGHT);
+  // Note that both the offsets and the coordinates have 342 added to them internally
+  // (for the offsets, this is before they are divided by 2/right shifted).
+  // This code could undo both sets of offsets, but it doesn't need to since they
+  // cancel out when subtracting.
+  const int xOff = (bpmem.scissorOffset.x << 1);
+  const int yOff = (bpmem.scissorOffset.y << 1);
+  MathUtil::Rectangle<int> native_rc_old(bpmem.scissorTL.x - xOff, bpmem.scissorTL.y - yOff,
+                                         bpmem.scissorBR.x - xOff + 1,
+                                         bpmem.scissorBR.y - yOff + 1);
 
-  auto target_rc = g_renderer->ConvertEFBRectangle(native_rc);
+  // x0 and y0 live in the interval [0, 1023], while
+  // x1 and y1 live in the interval [1, 1024].  Thus, if no wrapping occurred (or both were
+  // wrapped), [x0, x1) and [y0, y1) would be valid half-open intervals. This also means that if
+  // left == right, x1 will always equal x0 + 1, without wrapping.
+  const int x0 = (left - xOff) & 1023;
+  const int x1 = ((right - xOff) & 1023) + 1;
+  const int y0 = (top - yOff) & 1023;
+  const int y1 = ((bottom - yOff) & 1023) + 1;
+
+  std::vector<Range> x_ranges;
+  if (x0 < x1)
+  {
+    // [x0, x1) is a valid interval, but it might not intersect with the EFB.
+    if (x0 < EFB_WIDTH)
+    {
+      if (x1 <= EFB_WIDTH)
+        x_ranges.emplace_back('A', left - x0, x0, x1);
+      else
+        x_ranges.emplace_back('B', left - x0, x0, EFB_WIDTH);
+    }
+  }
+  else  // x0 >= x1, thus x1 <= x0
+  {
+    // Wrapping occurred.  We need to make two intervals: [0, x1) and [x0, 1024).
+    // However, we also only care about intervals that intersect the EFB.
+    if (x1 <= EFB_WIDTH)
+    {
+      x_ranges.emplace_back('C', right - x1 - 1, 0, x1);
+      // Since x1 <= x0, x0 < EFB_WIDTH only holds if x1 <= EFB_WIDTH
+      if (x0 < EFB_WIDTH)
+        x_ranges.emplace_back('D', left - x0, x0, EFB_WIDTH);
+    }
+
+    // Note that for x0 == x1, [x0, x1) is not a valid half-open interval.
+    // This would happen if, for instance, left = 1 and right = 0.  That would be
+    // rejected by the assert that left < right, but we can still treat it as two intervals.
+    // Further hardware testing is needed to determine if this is correct.
+  }
+
+  // Do the exact same thing with Y (using EFB_HEIGHT instead of EFB_WIDTH)
+  std::vector<Range> y_ranges;
+  if (y0 < y1)
+  {
+    if (y0 < EFB_HEIGHT)
+    {
+      if (y1 <= EFB_HEIGHT)
+        y_ranges.emplace_back('a', top - y0, y0, y1);
+      else
+        y_ranges.emplace_back('b', top - y0, y0, EFB_HEIGHT);
+    }
+  }
+  else
+  {
+    if (y1 <= EFB_HEIGHT)
+    {
+      y_ranges.emplace_back('c', bottom - y1 - 1, 0, y1);
+      if (y0 < EFB_HEIGHT)
+        y_ranges.emplace_back('d', top - y0, y0, EFB_HEIGHT);
+    }
+  }
+
+  // Now we need to form actual rectangles from the x and y ranges,
+  // which is a simple Cartesian product of x_ranges_clamped and y_ranges_clamped.
+  // Each rectangle is also a Cartesian product of x_range and y_range, with
+  // the rectangles being half-open (of the form [x0, x1) X [y0, y1)).
+  std::vector<Rect> rectangles;
+  rectangles.reserve(x_ranges.size() * y_ranges.size());
+
+  for (const auto& x_range : x_ranges)
+  {
+    ASSERT(x_range.start < x_range.end);
+    ASSERT(x_range.end <= EFB_WIDTH);
+    for (const auto& y_range : y_ranges)
+    {
+      ASSERT(y_range.start < y_range.end);
+      ASSERT(y_range.end <= EFB_HEIGHT);
+      rectangles.emplace_back(x_range, y_range);
+    }
+  }
+  // For now, simply choose the largest rectangle.
+  // But if we have no rectangles, add a bogus one that's out of bounds (this is temporary)
+  // Yes, this could be done more efficiently by looking at x_range and y_range individually,
+  // or even only picking one range earlier on, but again, this is temporary.
+  if (rectangles.empty())
+    rectangles.emplace_back(Range{'X', 0, 1000, 1001}, Range{'x', 0, 1000, 1001});
+
+  auto native_rc = *std::max_element(rectangles.begin(), rectangles.end());
+  /*
+  PanicAlertFmt("{} {}/{} {}\n{} {} {} {}\n{} {} {} {}", native_rc.second.first,
+                native_rc.second.second, xOff, yOff, native_rc.first.left, native_rc.first.top,
+                native_rc.first.right, native_rc.first.bottom, native_rc_old.left,
+                native_rc_old.top, native_rc_old.right, native_rc_old.bottom);
+                */
+
+  static char xtag = 'H', ytag = 'h';
+  if (xtag != native_rc.x_tag || ytag != native_rc.y_tag)
+  {
+    PanicAlertFmt("{} {}/{} {}\n{} {} {} {} {:c}{:c}\n{} {} {} {}\n", native_rc.x_off, native_rc.y_off,
+                  xOff, yOff, native_rc.rect.left, native_rc.rect.top, native_rc.rect.right,
+                  native_rc.rect.bottom, native_rc.x_tag, native_rc.y_tag, native_rc_old.left,
+                  native_rc_old.top, native_rc_old.right, native_rc_old.bottom);
+    xtag = native_rc.x_tag;
+    ytag = native_rc.y_tag;
+  }
+
+  auto target_rc = g_renderer->ConvertEFBRectangle(native_rc.rect);
   auto converted_rc =
       g_renderer->ConvertFramebufferRectangle(target_rc, g_renderer->GetCurrentFramebuffer());
   g_renderer->SetScissorRect(converted_rc);
-}
 
-void SetViewport()
-{
-  s32 xoff = bpmem.scissorOffset.x * 2;
-  s32 yoff = bpmem.scissorOffset.y * 2;
-  float x = g_renderer->EFBToScaledXf(xfmem.viewport.xOrig - xfmem.viewport.wd - xoff);
-  float y = g_renderer->EFBToScaledYf(xfmem.viewport.yOrig + xfmem.viewport.ht - yoff);
+  float x = g_renderer->EFBToScaledXf((xfmem.viewport.xOrig - native_rc.x_off) - xfmem.viewport.wd);
+  float y = g_renderer->EFBToScaledYf((xfmem.viewport.yOrig - native_rc.y_off) + xfmem.viewport.ht);
 
   float width = g_renderer->EFBToScaledXf(2.0f * xfmem.viewport.wd);
   float height = g_renderer->EFBToScaledYf(-2.0f * xfmem.viewport.ht);

@@ -347,7 +347,7 @@ void VertexShaderManager::SetConstants()
     }
 
     dirty = true;
-    BPFunctions::SetViewport();
+    BPFunctions::SetScissorAndViewport();
 
     // Update projection if the viewport isn't 1:1 useable
     if (!g_ActiveConfig.backend_info.bSupportsOversizedViewports)

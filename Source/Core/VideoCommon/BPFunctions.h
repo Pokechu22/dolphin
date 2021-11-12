@@ -15,8 +15,7 @@ namespace BPFunctions
 {
 void FlushPipeline();
 void SetGenerationMode();
-void SetScissor();
-void SetViewport();
+void SetScissorAndViewport();
 void SetDepthMode();
 void SetBlendMode();
 void ClearScreen(const MathUtil::Rectangle<int>& rc);

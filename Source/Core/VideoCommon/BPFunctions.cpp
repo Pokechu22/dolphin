@@ -40,11 +40,7 @@ namespace
 {
 struct Range
 {
-  constexpr Range(char tag_, u32 offset_, u32 start_, u32 end_)
-      : tag(tag_), offset(offset_), start(start_), end(end_)
-  {
-  }
-  const char tag;
+  constexpr Range(u32 offset_, u32 start_, u32 end_) : offset(offset_), start(start_), end(end_) {}
   const int offset;
   const int start;
   const int end;
@@ -55,14 +51,12 @@ struct Rect
   constexpr Rect(Range x_range, Range y_range)
       :  // Rectangle ctor takes x0, y0, x1, y1.
         rect(x_range.start, y_range.start, x_range.end, y_range.end), x_off(x_range.offset),
-        y_off(y_range.offset), x_tag(x_range.tag), y_tag(y_range.tag)
+        y_off(y_range.offset)
   {
   }
   const MathUtil::Rectangle<int> rect;
   const int x_off;
   const int y_off;
-  const int x_tag;
-  const int y_tag;
 
   constexpr bool operator<(const Rect& other) const
   {
@@ -134,9 +128,9 @@ void SetScissorAndViewport()
     if (x0 < EFB_WIDTH)
     {
       if (x1 <= EFB_WIDTH)
-        x_ranges.emplace_back('A', left - x0, x0, x1);
+        x_ranges.emplace_back(left - x0, x0, x1);
       else
-        x_ranges.emplace_back('B', left - x0, x0, EFB_WIDTH);
+        x_ranges.emplace_back(left - x0, x0, EFB_WIDTH);
     }
   }
   else  // x0 >= x1, thus x1 <= x0
@@ -145,10 +139,10 @@ void SetScissorAndViewport()
     // However, we also only care about intervals that intersect the EFB.
     if (x1 <= EFB_WIDTH)
     {
-      x_ranges.emplace_back('C', right - x1 - 1, 0, x1);
+      x_ranges.emplace_back(right - x1 - 1, 0, x1);
       // Since x1 <= x0, x0 < EFB_WIDTH only holds if x1 <= EFB_WIDTH
       if (x0 < EFB_WIDTH)
-        x_ranges.emplace_back('D', left - x0, x0, EFB_WIDTH);
+        x_ranges.emplace_back(left - x0, x0, EFB_WIDTH);
     }
 
     // Note that for x0 == x1, [x0, x1) is not a valid half-open interval.
@@ -164,18 +158,18 @@ void SetScissorAndViewport()
     if (y0 < EFB_HEIGHT)
     {
       if (y1 <= EFB_HEIGHT)
-        y_ranges.emplace_back('a', top - y0, y0, y1);
+        y_ranges.emplace_back(top - y0, y0, y1);
       else
-        y_ranges.emplace_back('b', top - y0, y0, EFB_HEIGHT);
+        y_ranges.emplace_back(top - y0, y0, EFB_HEIGHT);
     }
   }
   else
   {
     if (y1 <= EFB_HEIGHT)
     {
-      y_ranges.emplace_back('c', bottom - y1 - 1, 0, y1);
+      y_ranges.emplace_back(bottom - y1 - 1, 0, y1);
       if (y0 < EFB_HEIGHT)
-        y_ranges.emplace_back('d', top - y0, y0, EFB_HEIGHT);
+        y_ranges.emplace_back(top - y0, y0, EFB_HEIGHT);
     }
   }
 
@@ -202,26 +196,9 @@ void SetScissorAndViewport()
   // Yes, this could be done more efficiently by looking at x_range and y_range individually,
   // or even only picking one range earlier on, but again, this is temporary.
   if (rectangles.empty())
-    rectangles.emplace_back(Range{'X', 0, 1000, 1001}, Range{'x', 0, 1000, 1001});
+    rectangles.emplace_back(Range{0, 1000, 1001}, Range{0, 1000, 1001});
 
   auto native_rc = *std::max_element(rectangles.begin(), rectangles.end());
-  /*
-  PanicAlertFmt("{} {}/{} {}\n{} {} {} {}\n{} {} {} {}", native_rc.second.first,
-                native_rc.second.second, xOff, yOff, native_rc.first.left, native_rc.first.top,
-                native_rc.first.right, native_rc.first.bottom, native_rc_old.left,
-                native_rc_old.top, native_rc_old.right, native_rc_old.bottom);
-                */
-
-  static char xtag = 'H', ytag = 'h';
-  if (xtag != native_rc.x_tag || ytag != native_rc.y_tag)
-  {
-    PanicAlertFmt("{} {}/{} {}\n{} {} {} {} {:c}{:c}\n{} {} {} {}\n", native_rc.x_off, native_rc.y_off,
-                  xOff, yOff, native_rc.rect.left, native_rc.rect.top, native_rc.rect.right,
-                  native_rc.rect.bottom, native_rc.x_tag, native_rc.y_tag, native_rc_old.left,
-                  native_rc_old.top, native_rc_old.right, native_rc_old.bottom);
-    xtag = native_rc.x_tag;
-    ytag = native_rc.y_tag;
-  }
 
   auto target_rc = g_renderer->ConvertEFBRectangle(native_rc.rect);
   auto converted_rc =

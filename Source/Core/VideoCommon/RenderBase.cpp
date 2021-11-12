@@ -620,8 +620,8 @@ void Renderer::DrawDebugText()
   if (g_ActiveConfig.bOverlayProjStats)
     g_stats.DisplayProj();
 
-  // TODO: Config
-  g_stats.DisplayScissor();
+  if (g_ActiveConfig.bOverlayScissorStats)
+    g_stats.DisplayScissor();
 
   const std::string profile_output = Common::Profiler::ToString();
   if (!profile_output.empty())

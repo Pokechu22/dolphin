@@ -36,59 +36,8 @@ void SetGenerationMode()
   g_vertex_manager->SetRasterizationStateChanged();
 }
 
-namespace
+std::vector<ScissorRect> ComputeScissorRects()
 {
-struct Range
-{
-  constexpr Range(u32 offset_, u32 start_, u32 end_) : offset(offset_), start(start_), end(end_) {}
-  const int offset;
-  const int start;
-  const int end;
-};
-
-struct Rect
-{
-  constexpr Rect(Range x_range, Range y_range)
-      :  // Rectangle ctor takes x0, y0, x1, y1.
-        rect(x_range.start, y_range.start, x_range.end, y_range.end), x_off(x_range.offset),
-        y_off(y_range.offset)
-  {
-  }
-  const MathUtil::Rectangle<int> rect;
-  const int x_off;
-  const int y_off;
-
-  constexpr bool operator<(const Rect& other) const
-  {
-    return rect.GetWidth() * rect.GetHeight() < other.rect.GetWidth() * other.rect.GetHeight();
-  }
-};
-}  // namespace
-
-void SetScissorAndViewport()
-{
-  /* NOTE: the minimum value here for the scissor rect is -342.
-   * GX SDK functions internally add an offset of 342 to scissor coords to
-   * ensure that the register was always unsigned.
-   *
-   * The code that was here before tried to "undo" this offset, but
-   * since we always take the difference, the +342 added to both
-   * sides cancels out. */
-
-  /* NOTE: With a positive scissor offset, the scissor rect is shifted left and/or up;
-   * With a negative scissor offset, the scissor rect is shifted right and/or down.
-   *
-   * GX SDK functions internally add an offset of 342 to scissor offset.
-   * The scissor offset is always even, so to save space, the scissor offset register
-   * is scaled down by 2. So, if somebody calls GX_SetScissorBoxOffset(20, 20);
-   * the registers will be set to ((20 + 342) / 2 = 181, 181).
-   *
-   * The scissor offset register is 10bit signed [-512, 511].
-   * e.g. In Super Mario Galaxy 1 and 2, during the "Boss roar effect",
-   * for a scissor offset of (0, -464), the scissor offset register will be set to
-   * (171, (-464 + 342) / 2 = -61).
-   */
-
   // Range is [left, right] and [top, bottom] (closed intervals)
   const int left = bpmem.scissorTL.x;
   const int right = bpmem.scissorBR.x;
@@ -121,7 +70,7 @@ void SetScissorAndViewport()
   const int y0 = (top - yOff) & 1023;
   const int y1 = ((bottom - yOff) & 1023) + 1;
 
-  std::vector<Range> x_ranges;
+  std::vector<ScissorRect::ScissorRange> x_ranges;
   if (x0 < x1)
   {
     // [x0, x1) is a valid interval, but it might not intersect with the EFB.
@@ -152,7 +101,7 @@ void SetScissorAndViewport()
   }
 
   // Do the exact same thing with Y (using EFB_HEIGHT instead of EFB_WIDTH)
-  std::vector<Range> y_ranges;
+  std::vector<ScissorRect::ScissorRange> y_ranges;
   if (y0 < y1)
   {
     if (y0 < EFB_HEIGHT)
@@ -177,7 +126,7 @@ void SetScissorAndViewport()
   // which is a simple Cartesian product of x_ranges_clamped and y_ranges_clamped.
   // Each rectangle is also a Cartesian product of x_range and y_range, with
   // the rectangles being half-open (of the form [x0, x1) X [y0, y1)).
-  std::vector<Rect> rectangles;
+  std::vector<ScissorRect> rectangles;
   rectangles.reserve(x_ranges.size() * y_ranges.size());
 
   for (const auto& x_range : x_ranges)
@@ -191,14 +140,52 @@ void SetScissorAndViewport()
       rectangles.emplace_back(x_range, y_range);
     }
   }
+
+  return rectangles;
+}
+
+ScissorRect ComputeScissorRect()
+{
+  std::vector<ScissorRect> rectangles = ComputeScissorRects();
+
   // For now, simply choose the largest rectangle.
   // But if we have no rectangles, add a bogus one that's out of bounds (this is temporary)
   // Yes, this could be done more efficiently by looking at x_range and y_range individually,
   // or even only picking one range earlier on, but again, this is temporary.
   if (rectangles.empty())
-    rectangles.emplace_back(Range{0, 1000, 1001}, Range{0, 1000, 1001});
+  {
+    rectangles.emplace_back(ScissorRect::ScissorRange{0, 1000, 1001},
+                            ScissorRect::ScissorRange{0, 1000, 1001});
+  }
 
-  auto native_rc = *std::max_element(rectangles.begin(), rectangles.end());
+  return *std::max_element(rectangles.begin(), rectangles.end());
+}
+
+void SetScissorAndViewport()
+{
+  /* NOTE: the minimum value here for the scissor rect is -342.
+   * GX SDK functions internally add an offset of 342 to scissor coords to
+   * ensure that the register was always unsigned.
+   *
+   * The code that was here before tried to "undo" this offset, but
+   * since we always take the difference, the +342 added to both
+   * sides cancels out. */
+
+  /* NOTE: With a positive scissor offset, the scissor rect is shifted left and/or up;
+   * With a negative scissor offset, the scissor rect is shifted right and/or down.
+   *
+   * GX SDK functions internally add an offset of 342 to scissor offset.
+   * The scissor offset is always even, so to save space, the scissor offset register
+   * is scaled down by 2. So, if somebody calls GX_SetScissorBoxOffset(20, 20);
+   * the registers will be set to ((20 + 342) / 2 = 181, 181).
+   *
+   * The scissor offset register is 10bit signed [-512, 511].
+   * e.g. In Super Mario Galaxy 1 and 2, during the "Boss roar effect",
+   * for a scissor offset of (0, -464), the scissor offset register will be set to
+   * (171, (-464 + 342) / 2 = -61).
+   */
+
+  auto native_rc = ComputeScissorRect();
 
   auto target_rc = g_renderer->ConvertEFBRectangle(native_rc.rect);
   auto converted_rc =

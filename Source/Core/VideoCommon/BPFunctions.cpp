@@ -36,6 +36,55 @@ void SetGenerationMode()
   g_vertex_manager->SetRasterizationStateChanged();
 }
 
+static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, int end, int offset,
+                                                                   int efb_dim)
+{
+  // [start, end] is a closed interval.  We want to make a half-open interval.
+  // p0 lives in the interval [0, 1023], while p1 lives in the interval [1, 1024] since we add 1.
+  // Thus, if no wrapping occurred (or both were wrapped into the same region), [p0, p1) would be a
+  // valid half-open interval. This also means that if start == end, p1 will always equal p0 + 1,
+  // regardless of wrapping.
+  const int p0 = (start - offset) & 1023;
+  const int p1 = ((end - offset) & 1023) + 1;
+
+  std::vector<ScissorRect::ScissorRange> ranges;
+
+  if (p0 < p1)
+  {
+    // [p0, p1) is a valid interval, but it might not intersect with the EFB.
+    if (p0 < efb_dim)
+    {
+      // p0 = start - offset, so without wrapping offset = start - p0.  This same equation gives the
+      // new offset with wrapping applied.
+      if (p1 <= efb_dim)
+        ranges.emplace_back(start - p0, p0, p1);
+      else
+        ranges.emplace_back(start - p0, p0, efb_dim);
+    }
+  }
+  else  // p0 >= p1, thus p1 <= p0
+  {
+    // Wrapping occurred.  We need to make two intervals: [0, p1) and [p0, 1024).
+    // However, we also only care about intervals that intersect the EFB.
+    if (p1 <= efb_dim)
+    {
+      // The offset here is anchored on p1 and end, but since end is inclusive and p1 is exclusive
+      // we need to subtract 1.
+      ranges.emplace_back(end - p1 - 1, 0, p1);
+      // Since p1 <= p0, p0 < efb_dim only holds if p1 <= efb_dim
+      if (p0 < efb_dim)
+        ranges.emplace_back(start - p0, p0, efb_dim);
+    }
+
+    // Note that for p0 == p1, [p0, p1) is not a valid half-open interval.
+    // This would happen if, for instance, start = 1 and end = 0.  That would be
+    // rejected by the assert that start <= end, but we can still treat it as two intervals.
+    // Further hardware testing is needed to determine if this is correct.
+  }
+
+  return ranges;
+}
+
 std::vector<ScissorRect> ComputeScissorRects()
 {
   // Range is [left, right] and [top, bottom] (closed intervals)
@@ -55,88 +104,29 @@ std::vector<ScissorRect> ComputeScissorRects()
   // (for the offsets, this is before they are divided by 2/right shifted).
   // This code could undo both sets of offsets, but it doesn't need to since they
   // cancel out when subtracting.
-  const int xOff = (bpmem.scissorOffset.x << 1);
-  const int yOff = (bpmem.scissorOffset.y << 1);
-  MathUtil::Rectangle<int> native_rc_old(bpmem.scissorTL.x - xOff, bpmem.scissorTL.y - yOff,
-                                         bpmem.scissorBR.x - xOff + 1,
-                                         bpmem.scissorBR.y - yOff + 1);
+  const int x_off = (bpmem.scissorOffset.x << 1);
+  const int y_off = (bpmem.scissorOffset.y << 1);
 
-  // x0 and y0 live in the interval [0, 1023], while
-  // x1 and y1 live in the interval [1, 1024].  Thus, if no wrapping occurred (or both were
-  // wrapped), [x0, x1) and [y0, y1) would be valid half-open intervals. This also means that if
-  // left == right, x1 will always equal x0 + 1, without wrapping.
-  const int x0 = (left - xOff) & 1023;
-  const int x1 = ((right - xOff) & 1023) + 1;
-  const int y0 = (top - yOff) & 1023;
-  const int y1 = ((bottom - yOff) & 1023) + 1;
-
-  std::vector<ScissorRect::ScissorRange> x_ranges;
-  if (x0 < x1)
-  {
-    // [x0, x1) is a valid interval, but it might not intersect with the EFB.
-    if (x0 < EFB_WIDTH)
-    {
-      if (x1 <= EFB_WIDTH)
-        x_ranges.emplace_back(left - x0, x0, x1);
-      else
-        x_ranges.emplace_back(left - x0, x0, EFB_WIDTH);
-    }
-  }
-  else  // x0 >= x1, thus x1 <= x0
-  {
-    // Wrapping occurred.  We need to make two intervals: [0, x1) and [x0, 1024).
-    // However, we also only care about intervals that intersect the EFB.
-    if (x1 <= EFB_WIDTH)
-    {
-      x_ranges.emplace_back(right - x1 - 1, 0, x1);
-      // Since x1 <= x0, x0 < EFB_WIDTH only holds if x1 <= EFB_WIDTH
-      if (x0 < EFB_WIDTH)
-        x_ranges.emplace_back(left - x0, x0, EFB_WIDTH);
-    }
-
-    // Note that for x0 == x1, [x0, x1) is not a valid half-open interval.
-    // This would happen if, for instance, left = 1 and right = 0.  That would be
-    // rejected by the assert that left < right, but we can still treat it as two intervals.
-    // Further hardware testing is needed to determine if this is correct.
-  }
-
-  // Do the exact same thing with Y (using EFB_HEIGHT instead of EFB_WIDTH)
-  std::vector<ScissorRect::ScissorRange> y_ranges;
-  if (y0 < y1)
-  {
-    if (y0 < EFB_HEIGHT)
-    {
-      if (y1 <= EFB_HEIGHT)
-        y_ranges.emplace_back(top - y0, y0, y1);
-      else
-        y_ranges.emplace_back(top - y0, y0, EFB_HEIGHT);
-    }
-  }
-  else
-  {
-    if (y1 <= EFB_HEIGHT)
-    {
-      y_ranges.emplace_back(bottom - y1 - 1, 0, y1);
-      if (y0 < EFB_HEIGHT)
-        y_ranges.emplace_back(top - y0, y0, EFB_HEIGHT);
-    }
-  }
+  std::vector<ScissorRect::ScissorRange> x_ranges =
+      ComputeScissorRanges(left, right, x_off, EFB_WIDTH);
+  std::vector<ScissorRect::ScissorRange> y_ranges =
+      ComputeScissorRanges(top, bottom, y_off, EFB_HEIGHT);
 
   // Now we need to form actual rectangles from the x and y ranges,
   // which is a simple Cartesian product of x_ranges_clamped and y_ranges_clamped.
   // Each rectangle is also a Cartesian product of x_range and y_range, with
   // the rectangles being half-open (of the form [x0, x1) X [y0, y1)).
   std::vector<ScissorRect> rectangles;
-  rectangles.reserve(x_ranges.size() * y_ranges.size());
+  rectangles.reserve(std::min(x_ranges.size() * y_ranges.size(), 1ULL));
 
   for (const auto& x_range : x_ranges)
   {
-    ASSERT(x_range.start < x_range.end);
-    ASSERT(x_range.end <= EFB_WIDTH);
+    DEBUG_ASSERT(x_range.start < x_range.end);
+    DEBUG_ASSERT(x_range.end <= EFB_WIDTH);
     for (const auto& y_range : y_ranges)
     {
-      ASSERT(y_range.start < y_range.end);
-      ASSERT(y_range.end <= EFB_HEIGHT);
+      DEBUG_ASSERT(y_range.start < y_range.end);
+      DEBUG_ASSERT(y_range.end <= EFB_HEIGHT);
       rectangles.emplace_back(x_range, y_range);
     }
   }

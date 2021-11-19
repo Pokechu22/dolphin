@@ -313,7 +313,8 @@ void ProcessTriangle(OutputVertexData* v0, OutputVertexData* v1, OutputVertexDat
     Vertices[2] = v2;
   }
 
-  ClipTriangle(indices, &numIndices);
+  if (!xfmem.clipDisable.disable_clipping_detection)
+    ClipTriangle(indices, &numIndices);
 
   for (int i = 0; i + 3 <= numIndices; i += 3)
   {

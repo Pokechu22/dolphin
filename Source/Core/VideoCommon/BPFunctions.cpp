@@ -92,10 +92,9 @@ std::vector<ScissorRect> ComputeScissorRects()
   const int right = bpmem.scissorBR.x;
   const int top = bpmem.scissorTL.y;
   const int bottom = bpmem.scissorBR.y;
-  // These conditions are obvious
-  // What happens when these are violated hasn't yet been hardware tested
-  ASSERT(left <= right);
-  ASSERT(top <= bottom);
+  // When left > right or top > bottom, nothing renders (even with wrapping from the offsets)
+  if (left > right || top > bottom)
+    return {};
   // Ensure the width/height are reasonable.  These also haven't been hardware tested.
   // We want to be less than the width, not less or equal, as we use a closed interval.
   ASSERT(right - left < EFB_WIDTH);

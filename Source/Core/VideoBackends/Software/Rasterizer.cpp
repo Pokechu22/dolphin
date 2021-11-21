@@ -21,7 +21,8 @@
 
 namespace Rasterizer
 {
-static constexpr int BLOCK_SIZE = 2;
+static constexpr int BLOCK_SIZE = 8;
+static_assert((BLOCK_SIZE & 1) == 0, "block size must be even");
 
 static Slope ZSlope;
 static Slope WSlope;
@@ -34,7 +35,7 @@ static float vertexOffsetX;
 static float vertexOffsetY;
 
 static Tev tev;
-static RasterBlock rasterBlock;
+static RasterBlock rasterBlocks[BLOCK_SIZE / 2][BLOCK_SIZE / 2];
 
 void Init()
 {
@@ -96,7 +97,8 @@ static void Draw(s32 x, s32 y, s32 xi, s32 yi)
     EfbInterface::IncPerfCounterQuadCount(PQ_ZCOMP_OUTPUT_ZCOMPLOC);
   }
 
-  RasterBlockPixel& pixel = rasterBlock.Pixel[xi][yi];
+  RasterBlock& rasterBlock = rasterBlocks[xi >> 1][yi >> 1];
+  RasterBlockPixel& pixel = rasterBlock.Pixel[xi & 1][yi & 1];
 
   tev.Position[0] = x;
   tev.Position[1] = y;
@@ -164,7 +166,8 @@ static void InitSlope(Slope* slope, float f1, float f2, float f3, float DX31, fl
   slope->f0 = f1;
 }
 
-static inline void CalculateLOD(s32* lodp, bool* linear, u32 texmap, u32 texcoord)
+static inline void CalculateLOD(s32* lodp, bool* linear, const RasterBlock& block, u32 texmap,
+                                u32 texcoord)
 {
   auto texUnit = bpmem.tex.GetUnit(texmap);
 
@@ -175,9 +178,9 @@ static inline void CalculateLOD(s32* lodp, bool* linear, u32 texmap, u32 texcoor
 
   float sDelta, tDelta;
 
-  float* uv00 = rasterBlock.Pixel[0][0].Uv[texcoord];
-  float* uv10 = rasterBlock.Pixel[1][0].Uv[texcoord];
-  float* uv01 = rasterBlock.Pixel[0][1].Uv[texcoord];
+  const float* uv00 = block.Pixel[0][0].Uv[texcoord];
+  const float* uv10 = block.Pixel[1][0].Uv[texcoord];
+  const float* uv01 = block.Pixel[0][1].Uv[texcoord];
 
   float dudx = fabsf(uv00[0] - uv10[0]);
   float dvdx = fabsf(uv00[1] - uv10[1]);
@@ -215,11 +218,11 @@ static inline void CalculateLOD(s32* lodp, bool* linear, u32 texmap, u32 texcoor
   *lodp = lod;
 }
 
-static void BuildBlock(s32 blockX, s32 blockY)
+static void BuildBlock(RasterBlock& rasterBlock, s32 blockX, s32 blockY)
 {
-  for (s32 yi = 0; yi < BLOCK_SIZE; yi++)
+  for (s32 yi = 0; yi < 2; yi++)
   {
-    for (s32 xi = 0; xi < BLOCK_SIZE; xi++)
+    for (s32 xi = 0; xi < 2; xi++)
     {
       RasterBlockPixel& pixel = rasterBlock.Pixel[xi][yi];
 
@@ -251,7 +254,8 @@ static void BuildBlock(s32 blockX, s32 blockY)
     u32 texcoord = indref & 3;
     indref >>= 3;
 
-    CalculateLOD(&rasterBlock.IndirectLod[i], &rasterBlock.IndirectLinear[i], texmap, texcoord);
+    CalculateLOD(&rasterBlock.IndirectLod[i], &rasterBlock.IndirectLinear[i], rasterBlock, texmap,
+                 texcoord);
   }
 
   for (unsigned int i = 0; i <= bpmem.genMode.numtevstages; i++)
@@ -263,7 +267,19 @@ static void BuildBlock(s32 blockX, s32 blockY)
       u32 texmap = order.getTexMap(stageOdd);
       u32 texcoord = order.getTexCoord(stageOdd);
 
-      CalculateLOD(&rasterBlock.TextureLod[i], &rasterBlock.TextureLinear[i], texmap, texcoord);
+      CalculateLOD(&rasterBlock.TextureLod[i], &rasterBlock.TextureLinear[i], rasterBlock, texmap,
+                   texcoord);
+    }
+  }
+}
+
+static void BuildBlocks(s32 blockX, s32 blockY)
+{
+  for (s32 yi = 0; yi < BLOCK_SIZE / 2; yi++)
+  {
+    for (s32 xi = 0; xi < BLOCK_SIZE / 2; xi++)
+    {
+      BuildBlock(rasterBlocks[xi][yi], blockX + 2 * xi, blockY + 2 * yi);
     }
   }
 }
@@ -413,7 +429,7 @@ static void DrawTriangleFrontFace0(const OutputVertexData* v0, const OutputVerte
       if (a == 0x0 || b == 0x0 || c == 0x0)
         continue;
 
-      BuildBlock(x, y);
+      BuildBlocks(x, y);
 
       // Accept whole block when totally covered
       // We still need to check min/max x/y because of the scissor

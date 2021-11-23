@@ -58,10 +58,10 @@ static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, in
 std::vector<ScissorRect> ComputeScissorRects()
 {
   // Range is [left, right] and [top, bottom] (closed intervals)
-  const int left = bpmem.scissorTL.x;
-  const int right = bpmem.scissorBR.x;
-  const int top = bpmem.scissorTL.y;
-  const int bottom = bpmem.scissorBR.y;
+  const int left = bpmem.scissorTL.x & 2047;
+  const int right = bpmem.scissorBR.x & 2047;
+  const int top = bpmem.scissorTL.y & 2047;
+  const int bottom = bpmem.scissorBR.y & 2047;
   // When left > right or top > bottom, nothing renders (even with wrapping from the offsets)
   if (left > right || top > bottom)
     return {};
@@ -73,8 +73,8 @@ std::vector<ScissorRect> ComputeScissorRects()
   // (for the offsets, this is before they are divided by 2/right shifted).
   // This code could undo both sets of offsets, but it doesn't need to since they
   // cancel out when subtracting.
-  const int x_off = (bpmem.scissorOffset.x << 1);
-  const int y_off = (bpmem.scissorOffset.y << 1);
+  const int x_off = (bpmem.scissorOffset.x << 1) & 1023;
+  const int y_off = (bpmem.scissorOffset.y << 1) & 1023;
 
   std::vector<ScissorRect::ScissorRange> x_ranges =
       ComputeScissorRanges(left, right, x_off, EFB_WIDTH);

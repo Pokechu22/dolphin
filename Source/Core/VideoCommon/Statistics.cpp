@@ -14,11 +14,16 @@
 #include "VideoCommon/XFMemory.h"
 
 Statistics g_stats;
+static bool clear_scissors;
 
 void Statistics::ResetFrame()
 {
   this_frame = {};
-  scissor_info.clear();
+  clear_scissors = true;
+  if (scissor_info.size() > 1)
+  {
+    scissor_info.erase(scissor_info.begin(), scissor_info.end() - 1);
+  }
 }
 
 void Statistics::SwapDL()
@@ -128,6 +133,11 @@ void Statistics::DisplayProj() const
 
 void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemory)
 {
+  if (clear_scissors)
+  {
+    scissor_info.clear();
+  }
+
   RectangleInfo info{bpmemory, xfmemory};
   bool add;
   if (scissor_info.empty())

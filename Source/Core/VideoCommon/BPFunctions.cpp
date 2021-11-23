@@ -39,47 +39,17 @@ void SetGenerationMode()
 static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, int end, int offset,
                                                                    int efb_dim)
 {
-  // [start, end] is a closed interval.  We want to make a half-open interval.
-  // p0 lives in the interval [0, 1023], while p1 lives in the interval [1, 1024] since we add 1.
-  // Thus, if no wrapping occurred (or both were wrapped into the same region), [p0, p1) would be a
-  // valid half-open interval. This also means that if start == end, p1 will always equal p0 + 1,
-  // regardless of wrapping.
-  const int p0 = (start - offset) & 1023;
-  const int p1 = ((end - offset) & 1023) + 1;
-
   std::vector<ScissorRect::ScissorRange> ranges;
 
-  if (p0 < p1)
+  for (int extra_off = -4096; extra_off <= 4096; extra_off += 1024)
   {
-    // [p0, p1) is a valid interval, but it might not intersect with the EFB.
-    if (p0 < efb_dim)
+    int new_off = offset + extra_off;
+    int new_start = std::clamp(start - new_off, 0, efb_dim);
+    int new_end = std::clamp(end - new_off + 1, 0, efb_dim);
+    if (new_start < new_end)
     {
-      // p0 = start - offset, so without wrapping offset = start - p0.  This same equation gives the
-      // new offset with wrapping applied.
-      if (p1 <= efb_dim)
-        ranges.emplace_back(start - p0, p0, p1);
-      else
-        ranges.emplace_back(start - p0, p0, efb_dim);
+      ranges.emplace_back(new_off, new_start, new_end);
     }
-  }
-  else  // p0 >= p1, thus p1 <= p0
-  {
-    // Wrapping occurred.  We need to make two intervals: [0, p1) and [p0, 1024).
-    // However, we also only care about intervals that intersect the EFB.
-    if (p1 <= efb_dim)
-    {
-      // The offset here is anchored on p1 and end, but since end is inclusive and p1 is exclusive
-      // we need to subtract 1.
-      ranges.emplace_back(end - p1 - 1, 0, p1);
-      // Since p1 <= p0, p0 < efb_dim only holds if p1 <= efb_dim
-      if (p0 < efb_dim)
-        ranges.emplace_back(start - p0, p0, efb_dim);
-    }
-
-    // Note that for p0 == p1, [p0, p1) is not a valid half-open interval.
-    // This would happen if, for instance, start = 1 and end = 0.  That would be
-    // rejected by the assert that start <= end, but we can still treat it as two intervals.
-    // Further hardware testing is needed to determine if this is correct.
   }
 
   return ranges;
@@ -97,8 +67,8 @@ std::vector<ScissorRect> ComputeScissorRects()
     return {};
   // Ensure the width/height are reasonable.  These also haven't been hardware tested.
   // We want to be less than the width, not less or equal, as we use a closed interval.
-  ASSERT(right - left < EFB_WIDTH);
-  ASSERT(bottom - top < EFB_HEIGHT);
+  //ASSERT(right - left < EFB_WIDTH);
+  //ASSERT(bottom - top < EFB_HEIGHT);
   // Note that both the offsets and the coordinates have 342 added to them internally
   // (for the offsets, this is before they are divided by 2/right shifted).
   // This code could undo both sets of offsets, but it doesn't need to since they

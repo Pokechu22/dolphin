@@ -10,6 +10,7 @@ struct OutputVertexData;
 namespace Rasterizer
 {
 void Init();
+void ScissorChanged();
 
 void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v1,
                            const OutputVertexData* v2);

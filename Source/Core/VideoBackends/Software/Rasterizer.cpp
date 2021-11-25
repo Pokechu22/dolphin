@@ -36,6 +36,8 @@ static float vertexOffsetY;
 static Tev tev;
 static RasterBlock rasterBlock;
 
+static std::vector<BPFunctions::ScissorRect> scissors;
+
 void Init()
 {
   tev.Init();
@@ -45,6 +47,11 @@ void Init()
   // TODO: This is just a guess!
   ZSlope.dfdx = ZSlope.dfdy = 0.f;
   ZSlope.f0 = 1.f;
+}
+
+void ScissorChanged()
+{
+  scissors = BPFunctions::ComputeScissorRects();
 }
 
 // Returns approximation of log2(f) in s28.4
@@ -268,8 +275,9 @@ static void BuildBlock(s32 blockX, s32 blockY)
   }
 }
 
-static void DrawTriangleFrontFace0(const OutputVertexData* v0, const OutputVertexData* v1,
-                                   const OutputVertexData* v2, BPFunctions::ScissorRect scissor)
+static void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v1,
+                                  const OutputVertexData* v2,
+                                  const BPFunctions::ScissorRect& scissor)
 {
   // adapted from http://devmaster.net/posts/6145/advanced-rasterization
 
@@ -467,8 +475,7 @@ void DrawTriangleFrontFace(const OutputVertexData* v0, const OutputVertexData* v
                            const OutputVertexData* v2)
 {
   INCSTAT(g_stats.this_frame.num_triangles_drawn);
-  // TODO: Cache the scissor list for performance reasons
-  for (BPFunctions::ScissorRect scissor : BPFunctions::ComputeScissorRects())
-    DrawTriangleFrontFace0(v0, v1, v2, scissor);
+  for (const auto& scissor : scissors)
+    DrawTriangleFrontFace(v0, v1, v2, scissor);
 }
 }  // namespace Rasterizer

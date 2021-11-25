@@ -6,7 +6,7 @@
 #include <array>
 #include <vector>
 
-struct BPMemory;
+#include "VideoCommon/BPMemory.h"
 struct XFMemory;
 
 struct Statistics
@@ -33,12 +33,9 @@ struct Statistics
       ScissorInfo(const BPMemory& bpmemory);
       bool operator==(const ScissorInfo& other) const;
 
-      int x0;
-      int y0;
-      int x1;
-      int y1;
-      int xOff;
-      int yOff;
+      ScissorPos tl;
+      ScissorPos br;
+      ScissorOffset off;
 
       constexpr int X0() const { return x0 - 342; }
       constexpr int Y0() const { return y0 - 342; }

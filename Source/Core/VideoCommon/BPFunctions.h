@@ -39,10 +39,10 @@ struct ScissorRect
   const int x_off;
   const int y_off;
 
-  constexpr bool operator<(const ScissorRect& other) const
-  {
-    return rect.GetWidth() * rect.GetHeight() < other.rect.GetWidth() * other.rect.GetHeight();
-  }
+  int GetViewportArea() const;
+  int GetArea() const;
+
+  bool operator<(const ScissorRect& other) const;
 };
 
 std::vector<ScissorRect> ComputeScissorRects();

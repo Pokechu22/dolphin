@@ -36,6 +36,40 @@ void SetGenerationMode()
   g_vertex_manager->SetRasterizationStateChanged();
 }
 
+int ScissorRect::GetViewportArea() const
+{
+  int viewport_x0 = xfmem.viewport.xOrig - xfmem.viewport.wd;
+  int viewport_x1 = xfmem.viewport.xOrig + xfmem.viewport.wd;
+  int viewport_y0 = xfmem.viewport.xOrig - xfmem.viewport.wd;
+  int viewport_y1 = xfmem.viewport.xOrig + xfmem.viewport.wd;
+
+  int x0 = std::clamp(rect.left + x_off, viewport_x0, viewport_x1);
+  int x1 = std::clamp(rect.right + x_off, viewport_x0, viewport_x1);
+
+  int y0 = std::clamp(rect.top + y_off, viewport_y0, viewport_y1);
+  int y1 = std::clamp(rect.bottom + y_off, viewport_y0, viewport_y1);
+
+  return (x1 - x0) * (y1 - y0);
+}
+
+int ScissorRect::GetArea() const
+{
+  return rect.GetWidth() * rect.GetHeight();
+}
+
+bool ScissorRect::operator<(const ScissorRect& other) const
+{
+  // First, penalize any rect that is not in the viewport
+  int our_area = GetViewportArea();
+  int their_area = other.GetViewportArea();
+
+  if (our_area != their_area)
+    return our_area < their_area;
+
+  // Now compare on areas
+  return GetArea() < other.GetArea();
+}
+
 static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, int end, int offset,
                                                                    int efb_dim)
 {
@@ -65,10 +99,6 @@ std::vector<ScissorRect> ComputeScissorRects()
   // When left > right or top > bottom, nothing renders (even with wrapping from the offsets)
   if (left > right || top > bottom)
     return {};
-  // Ensure the width/height are reasonable.  These also haven't been hardware tested.
-  // We want to be less than the width, not less or equal, as we use a closed interval.
-  //ASSERT(right - left < EFB_WIDTH);
-  //ASSERT(bottom - top < EFB_HEIGHT);
   // Note that both the offsets and the coordinates have 342 added to them internally
   // (for the offsets, this is before they are divided by 2/right shifted).
   // This code could undo both sets of offsets, but it doesn't need to since they

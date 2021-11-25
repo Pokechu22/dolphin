@@ -159,7 +159,7 @@ SWRenderer::CreateNativeVertexFormat(const PortableVertexDeclaration& vtx_decl)
   return std::make_unique<NativeVertexFormat>(vtx_decl);
 }
 
-void SetScissorRect(const MathUtil::Rectangle<int>& rc)
+void SWRenderer::SetScissorRect(const MathUtil::Rectangle<int>& rc)
 {
   // BPFunctions calls SetScissorRect with the "best" scissor rect whenever the viewport or scissor
   // changes.  However, the software renderer is actually able to use multiple scissor rects (which

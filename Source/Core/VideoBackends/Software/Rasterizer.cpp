@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <set>
 
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
@@ -36,7 +37,7 @@ static float vertexOffsetY;
 static Tev tev;
 static RasterBlock rasterBlock;
 
-static std::vector<BPFunctions::ScissorRect> scissors;
+static std::set<BPFunctions::ScissorRect> scissors;
 
 void Init()
 {

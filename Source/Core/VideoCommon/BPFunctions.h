@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <vector>
+#include <set>
 
 #include "Common/MathUtil.h"
 
@@ -45,7 +45,7 @@ struct ScissorRect
   bool operator<(const ScissorRect& other) const;
 };
 
-std::vector<ScissorRect> ComputeScissorRects();
+std::set<ScissorRect> ComputeScissorRects();
 ScissorRect ComputeScissorRect();
 
 void FlushPipeline();

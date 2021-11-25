@@ -19,8 +19,8 @@ struct ScissorRect
 {
   struct ScissorRange
   {
-    constexpr ScissorRange(u32 offset_, u32 start_, u32 end_)
-        : offset(offset_), start(start_), end(end_)
+    constexpr ScissorRange(u32 offset, u32 start, u32 end)
+        : offset(offset), start(start), end(end)
     {
     }
     const int offset;

@@ -38,10 +38,10 @@ void SetGenerationMode()
 
 int ScissorRect::GetViewportArea() const
 {
-  int viewport_x0 = xfmem.viewport.xOrig - xfmem.viewport.wd;
-  int viewport_x1 = xfmem.viewport.xOrig + xfmem.viewport.wd;
-  int viewport_y0 = xfmem.viewport.xOrig - xfmem.viewport.wd;
-  int viewport_y1 = xfmem.viewport.xOrig + xfmem.viewport.wd;
+  auto [viewport_x0, viewport_x1] = std::minmax(int(xfmem.viewport.xOrig - xfmem.viewport.wd),
+                                                int(xfmem.viewport.xOrig + xfmem.viewport.wd));
+  auto [viewport_y0, viewport_y1] = std::minmax(int(xfmem.viewport.yOrig - xfmem.viewport.ht),
+                                                int(xfmem.viewport.yOrig + xfmem.viewport.ht));
 
   int x0 = std::clamp(rect.left + x_off, viewport_x0, viewport_x1);
   int x1 = std::clamp(rect.right + x_off, viewport_x0, viewport_x1);

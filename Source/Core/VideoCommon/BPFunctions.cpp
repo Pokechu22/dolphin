@@ -36,50 +36,43 @@ void SetGenerationMode()
   g_vertex_manager->SetRasterizationStateChanged();
 }
 
-int ScissorRect::GetViewportArea() const
-{
-  auto [viewport_x0, viewport_x1] = std::minmax(int(xfmem.viewport.xOrig - xfmem.viewport.wd),
-                                                int(xfmem.viewport.xOrig + xfmem.viewport.wd));
-  auto [viewport_y0, viewport_y1] = std::minmax(int(xfmem.viewport.yOrig - xfmem.viewport.ht),
-                                                int(xfmem.viewport.yOrig + xfmem.viewport.ht));
-
-  int x0 = std::clamp(rect.left + x_off, viewport_x0, viewport_x1);
-  int x1 = std::clamp(rect.right + x_off, viewport_x0, viewport_x1);
-
-  int y0 = std::clamp(rect.top + y_off, viewport_y0, viewport_y1);
-  int y1 = std::clamp(rect.bottom + y_off, viewport_y0, viewport_y1);
-
-  return (x1 - x0) * (y1 - y0);
-}
-
 int ScissorRect::GetArea() const
 {
   return rect.GetWidth() * rect.GetHeight();
 }
 
-// Compare so that a sorted collection of rectangles has the best one last,
-// so that if they're drawn in order, the best one is the one that is drawn last (and thus over the
-// rest).
+int ScissorResult::GetViewportArea(const ScissorRect& rect) const
+{
+  int x0 = std::clamp<int>(rect.rect.left + rect.x_off, viewport_left, viewport_right);
+  int x1 = std::clamp<int>(rect.rect.right + rect.x_off, viewport_left, viewport_right);
+
+  int y0 = std::clamp<int>(rect.rect.top + rect.y_off, viewport_top, viewport_bottom);
+  int y1 = std::clamp<int>(rect.rect.bottom + rect.y_off, viewport_top, viewport_bottom);
+
+  return (x1 - x0) * (y1 - y0);
+}
+
+// Compare so that a sorted collection of rectangles has the best one last, so that if they're drawn
+// in order, the best one is the one that is drawn last (and thus over the rest).
 // The exact iteration order on hardware hasn't been tested, but silly things can happen where a
 // polygon can intersect with itself; this only applies outside of the viewport region (in areas
 // that would normally be affected by clipping).  No game is known to care about this.
-bool ScissorRect::operator<(const ScissorRect& other) const
+bool ScissorResult::IsWorse(const ScissorRect& lhs, const ScissorRect& rhs) const
 {
   // First, penalize any rect that is not in the viewport
-  int our_area = GetViewportArea();
-  int their_area = other.GetViewportArea();
+  int lhs_area = GetViewportArea(lhs);
+  int rhs_area = GetViewportArea(rhs);
 
-  if (our_area != their_area)
-    return our_area < their_area;
+  if (lhs_area != rhs_area)
+    return lhs_area < rhs_area;
 
-  // Now compare on areas
-  return GetArea() < other.GetArea();
+  // Now compare on total areas, without regard for the viewport
+  return lhs.GetArea() < rhs.GetArea();
 }
 
-static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, int end, int offset,
-                                                                   int efb_dim)
+static std::vector<ScissorRange> ComputeScissorRanges(int start, int end, int offset, int efb_dim)
 {
-  std::vector<ScissorRect::ScissorRange> ranges;
+  std::vector<ScissorRange> ranges;
 
   for (int extra_off = -4096; extra_off <= 4096; extra_off += 1024)
   {
@@ -95,35 +88,47 @@ static std::vector<ScissorRect::ScissorRange> ComputeScissorRanges(int start, in
   return ranges;
 }
 
-std::set<ScissorRect> ComputeScissorRects()
+ScissorResult::ScissorResult(const BPMemory& bpmemory, const XFMemory& xfmemory)
+    : ScissorResult(bpmemory,
+                    std::minmax(xfmemory.viewport.xOrig - xfmemory.viewport.wd,
+                                xfmemory.viewport.xOrig + xfmemory.viewport.wd),
+                    std::minmax(xfmemory.viewport.yOrig - xfmemory.viewport.ht,
+                                xfmemory.viewport.yOrig + xfmemory.viewport.ht))
+{
+}
+ScissorResult::ScissorResult(const BPMemory& bpmemory, std::pair<float, float> viewport_x,
+                             std::pair<float, float> viewport_y)
+    : scissor_tl{.hex = bpmemory.scissorTL.hex}, scissor_br{.hex = bpmemory.scissorBR.hex},
+      scissor_off{.hex = bpmemory.scissorOffset.hex}, viewport_left(viewport_x.first),
+      viewport_right(viewport_x.second), viewport_top(viewport_y.first),
+      viewport_bottom(viewport_y.second)
 {
   // Range is [left, right] and [top, bottom] (closed intervals)
-  const int left = bpmem.scissorTL.x & 2047;
-  const int right = bpmem.scissorBR.x & 2047;
-  const int top = bpmem.scissorTL.y & 2047;
-  const int bottom = bpmem.scissorBR.y & 2047;
+  const int left = scissor_tl.x;
+  const int right = scissor_br.x;
+  const int top = scissor_tl.y;
+  const int bottom = scissor_br.y;
   // When left > right or top > bottom, nothing renders (even with wrapping from the offsets)
   if (left > right || top > bottom)
-    return {};
+    return;
+
   // Note that both the offsets and the coordinates have 342 added to them internally
   // (for the offsets, this is before they are divided by 2/right shifted).
   // This code could undo both sets of offsets, but it doesn't need to since they
   // cancel out when subtracting (and those offsets actually matter for the left > right and top >
   // bottom checks).
-  const int x_off = (bpmem.scissorOffset.x << 1) & 1023;
-  const int y_off = (bpmem.scissorOffset.y << 1) & 1023;
+  const int x_off = scissor_off.x << 1;
+  const int y_off = scissor_off.y << 1;
 
-  std::vector<ScissorRect::ScissorRange> x_ranges =
-      ComputeScissorRanges(left, right, x_off, EFB_WIDTH);
-  std::vector<ScissorRect::ScissorRange> y_ranges =
-      ComputeScissorRanges(top, bottom, y_off, EFB_HEIGHT);
+  std::vector<ScissorRange> x_ranges = ComputeScissorRanges(left, right, x_off, EFB_WIDTH);
+  std::vector<ScissorRange> y_ranges = ComputeScissorRanges(top, bottom, y_off, EFB_HEIGHT);
+
+  m_result.reserve(x_ranges.size() * y_ranges.size());
 
   // Now we need to form actual rectangles from the x and y ranges,
   // which is a simple Cartesian product of x_ranges_clamped and y_ranges_clamped.
   // Each rectangle is also a Cartesian product of x_range and y_range, with
   // the rectangles being half-open (of the form [x0, x1) X [y0, y1)).
-  std::set<ScissorRect> rectangles;
-
   for (const auto& x_range : x_ranges)
   {
     DEBUG_ASSERT(x_range.start < x_range.end);
@@ -132,34 +137,40 @@ std::set<ScissorRect> ComputeScissorRects()
     {
       DEBUG_ASSERT(y_range.start < y_range.end);
       DEBUG_ASSERT(y_range.end <= EFB_HEIGHT);
-      rectangles.emplace(x_range, y_range);
+      m_result.emplace_back(x_range, y_range);
     }
   }
 
-  return rectangles;
+  auto cmp = [&](const ScissorRect& lhs, const ScissorRect& rhs) { return IsWorse(lhs, rhs); };
+  std::sort(m_result.begin(), m_result.end(), cmp);
 }
 
-ScissorRect ComputeScissorRect()
+ScissorRect ScissorResult::Best() const
 {
-  std::set<ScissorRect> rectangles = ComputeScissorRects();
-
-  // For now, simply choose the best rectangle.
-  auto largest_rectangle = rectangles.rbegin();
-  if (largest_rectangle != rectangles.rend())
+  // For now, simply choose the best rectangle (see ScissorResult::IsWorse).
+  // This does mean we calculate all rectangles and only choose one, which is not optimal, but this
+  // is called infrequently.  Eventually, all backends will support multiple scissor rects.
+  if (!m_result.empty())
   {
-    return *largest_rectangle;
+    return m_result.back();
   }
   else
   {
-    // But if we have no rectangles, add a bogus one that's out of bounds (this is temporary).
-    return ScissorRect(ScissorRect::ScissorRange{0, 1000, 1001},
-                       ScissorRect::ScissorRange{0, 1000, 1001});
+    // But if we have no rectangles, use a bogus one that's out of bounds.
+    // Ideally, all backends will support multiple scissor rects, in which case this won't be
+    // needed.
+    return ScissorRect(ScissorRange{0, 1000, 1001}, ScissorRange{0, 1000, 1001});
   }
+}
+
+ScissorResult ComputeScissorRects()
+{
+  return ScissorResult{bpmem, xfmem};
 }
 
 void SetScissorAndViewport()
 {
-  auto native_rc = ComputeScissorRect();
+  auto native_rc = ComputeScissorRects().Best();
 
   auto target_rc = g_renderer->ConvertEFBRectangle(native_rc.rect);
   auto converted_rc =

@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <cstring>
-#include <set>
+#include <vector>
 
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
@@ -37,7 +37,7 @@ static float vertexOffsetY;
 static Tev tev;
 static RasterBlock rasterBlock;
 
-static std::set<BPFunctions::ScissorRect> scissors;
+static std::vector<BPFunctions::ScissorRect> scissors;
 
 void Init()
 {
@@ -52,7 +52,7 @@ void Init()
 
 void ScissorChanged()
 {
-  scissors = BPFunctions::ComputeScissorRects();
+  scissors = std::move(BPFunctions::ComputeScissorRects().m_result);
 }
 
 // Returns approximation of log2(f) in s28.4

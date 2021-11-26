@@ -8,10 +8,9 @@
 
 #include <imgui.h>
 
-#include "VideoCommon/BPMemory.h"
+#include "VideoCommon/BPFunctions.h"
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
-#include "VideoCommon/XFMemory.h"
 
 Statistics g_stats;
 static bool clear_scissors;
@@ -20,9 +19,9 @@ void Statistics::ResetFrame()
 {
   this_frame = {};
   clear_scissors = true;
-  if (scissor_info.size() > 1)
+  if (scissors.size() > 1)
   {
-    scissor_info.erase(scissor_info.begin(), scissor_info.end() - 1);
+    scissors.erase(scissors.begin(), scissors.end() - 1);
   }
 }
 
@@ -131,17 +130,17 @@ void Statistics::DisplayProj() const
   ImGui::End();
 }
 
-void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemory)
+void Statistics::AddScissorRect()
 {
   if (clear_scissors)
   {
-    scissor_info.clear();
+    scissors.clear();
     clear_scissors = false;
   }
 
-  RectangleInfo info{bpmemory, xfmemory};
+  BPFunctions::ScissorResult scissor = BPFunctions::ComputeScissorRects();
   bool add;
-  if (scissor_info.empty())
+  if (scissors.empty())
   {
     add = true;
   }
@@ -150,73 +149,17 @@ void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemo
     if (allow_duplicate_scissors)
     {
       // Only check the last entry
-      add = !scissor_info.back().Matches(info, show_scissors, show_viewports);
+      add = !scissors.back().Matches(scissor, show_scissors, show_viewports);
     }
     else
     {
-      add = std::find_if(scissor_info.begin(), scissor_info.end(), [&](auto& i) {
-              return i.Matches(info, show_scissors, show_viewports);
-            }) == scissor_info.end();
+      add = std::find_if(scissors.begin(), scissors.end(), [&](auto& s) {
+              return s.Matches(scissor, show_scissors, show_viewports);
+            }) == scissors.end();
     }
   }
   if (add)
-    scissor_info.push_back(std::move(info));
-}
-
-Statistics::RectangleInfo::ScissorInfo::ScissorInfo(const BPMemory& bpmemory)
-{
-  x0 = bpmemory.scissorTL.x;
-  y0 = bpmemory.scissorTL.y;
-  x1 = bpmemory.scissorBR.x;
-  y1 = bpmemory.scissorBR.y;
-  xOff = bpmemory.scissorOffset.x;
-  yOff = bpmemory.scissorOffset.y;
-}
-
-bool Statistics::RectangleInfo::ScissorInfo::operator==(const ScissorInfo& other) const
-{
-  return memcmp(this, &other, sizeof(ScissorInfo)) == 0;
-}
-
-int Statistics::RectangleInfo::ScissorInfo::XOff() const
-{
-  return (xOff << 1) - 342;
-}
-
-int Statistics::RectangleInfo::ScissorInfo::YOff() const
-{
-  return (yOff << 1) - 342;
-}
-
-Statistics::RectangleInfo::ViewportInfo::ViewportInfo(const XFMemory& xfmemory)
-{
-  float vxCenter = xfmemory.viewport.xOrig - 342;
-  float vyCenter = xfmemory.viewport.yOrig - 342;
-  // Subtract for x and add for y since y height is usually negative
-  vx0 = vxCenter - xfmemory.viewport.wd;
-  vy0 = vyCenter + xfmemory.viewport.ht;
-  vx1 = vxCenter + xfmemory.viewport.wd;
-  vy1 = vyCenter - xfmemory.viewport.ht;
-}
-
-bool Statistics::RectangleInfo::ViewportInfo::operator==(const ViewportInfo& other) const
-{
-  return memcmp(this, &other, sizeof(ViewportInfo)) == 0;
-}
-
-Statistics::RectangleInfo::RectangleInfo(const BPMemory& bpmemory, const XFMemory& xfmemory)
-    : scissor{bpmemory}, viewport{xfmemory}
-{
-}
-
-bool Statistics::RectangleInfo::Matches(const RectangleInfo& other, bool show_scissors,
-                                        bool show_viewports) const
-{
-  if (show_scissors && (scissor != other.scissor))
-    return false;
-  if (show_viewports && (viewport != other.viewport))
-    return false;
-  return true;
+    scissors.push_back(std::move(scissor));
 }
 
 void Statistics::DisplayScissor()
@@ -252,23 +195,23 @@ void Statistics::DisplayScissor()
   }
   ImGui::EndDisabled();
   ImGui::SameLine();
-  ImGui::BeginDisabled(current_scissor >= scissor_info.size());
+  ImGui::BeginDisabled(current_scissor >= scissors.size());
   if (ImGui::ArrowButton("##right", ImGuiDir_Right))
   {
     current_scissor++;
-    if (current_scissor > scissor_info.size())
+    if (current_scissor > scissors.size())
     {
-      current_scissor = scissor_info.size();
+      current_scissor = scissors.size();
     }
   }
   ImGui::EndDisabled();
   ImGui::SameLine();
   if (current_scissor == 0)
-    ImGui::Text("Displaying all %zu rectangle(s)", scissor_info.size());
-  else if (current_scissor <= scissor_info.size())
-    ImGui::Text("Displaying rectangle %zu / %zu", current_scissor, scissor_info.size());
+    ImGui::Text("Displaying all %zu rectangle(s)", scissors.size());
+  else if (current_scissor <= scissors.size())
+    ImGui::Text("Displaying rectangle %zu / %zu", current_scissor, scissors.size());
   else
-    ImGui::Text("Displaying rectangle %zu / %zu (OoB)", current_scissor, scissor_info.size());
+    ImGui::Text("Displaying rectangle %zu / %zu (OoB)", current_scissor, scissors.size());
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
   ImVec2 p = ImGui::GetCursorScreenPos();
@@ -319,19 +262,39 @@ void Statistics::DisplayScissor()
       ImVec4(0, 1, 1, 1), ImVec4(0, 0, 1, 1), ImVec4(1, 0, 1, 1),
   };
   const auto draw_scissor = [&](size_t index) {
-    const RectangleInfo& rect_info = scissor_info[index];
+    const auto& info = scissors[index];
     const ImU32 col = ImGui::GetColorU32(COLORS[index % COLORS.size()]);
     if (show_scissors)
     {
-      const auto& info = rect_info.scissor;
-      draw_x(-info.XOff(), -info.YOff(), 4, col);
-      draw_list->AddRect(vec(info.X0() - info.XOff(), info.Y0() - info.YOff()),
-                         vec(info.X1() - info.XOff(), info.Y1() - info.YOff()), col);
+      int x_off = (info.scissor_off.x << 1) - info.viewport_left;
+      int y_off = (info.scissor_off.y << 1) - info.viewport_top;
+      int x0 = info.scissor_tl.x - x_off;
+      int x1 = info.scissor_br.x - x_off;
+      int y0 = info.scissor_tl.y - y_off;
+      int y1 = info.scissor_br.y - y_off;
+      draw_x(x_off, y_off, 4, col);
+      if (x0 <= x1 && y0 <= y1)
+      {
+        draw_list->AddRect(vec(x0, y0), vec(x1, y1), col);
+      }
+      else
+      {
+        draw_list->AddLine(vec(x0, y0), vec(x0, y0, 2, 0), col);
+        draw_list->AddLine(vec(x0, y0), vec(x0, y0, 0, 2), col);
+        draw_list->AddLine(vec(x1, y1), vec(x1, y1, 2, 0), col);
+        draw_list->AddLine(vec(x1, y1), vec(x1, y1, 0, 2), col);
+      }
     }
     if (show_viewports)
     {
-      const auto& info = rect_info.viewport;
-      draw_list->AddRect(vec(info.vx0, info.vy0), vec(info.vx1, info.vy1), col);
+      draw_list->AddRect(vec(info.viewport_left, info.viewport_top),
+                         vec(info.viewport_right, info.viewport_bottom), col);
+    }
+    for (const auto& r : info.m_result)
+    {
+      draw_x(r.x_off, r.y_off, 2, col & 0x7fffffff);
+      draw_list->AddRectFilled(vec(r.rect.left, r.rect.top),
+                               vec(r.rect.right, r.rect.bottom), col & 0x7fffffff);
     }
   };
   constexpr auto NUM_SCISSOR_COLUMNS = 9;
@@ -348,41 +311,47 @@ void Statistics::DisplayScissor()
     ImGui::TableHeadersRow();
   };
   const auto draw_scissor_table_row = [&](size_t index) {
-    const auto& info = scissor_info[index].scissor;
+    const auto& info = scissors[index];
+    int x_off = (info.scissor_off.x << 1) - info.viewport_top;
+    int y_off = (info.scissor_off.y << 1) - info.viewport_left;
+    int x0 = info.scissor_tl.x - info.viewport_top;
+    int x1 = info.scissor_br.x - info.viewport_left;
+    int y0 = info.scissor_tl.y - info.viewport_top;
+    int y1 = info.scissor_br.y - info.viewport_left;
     ImGui::TableNextColumn();
     ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.X0());
+    ImGui::Text("%d", x0);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.Y0());
+    ImGui::Text("%d", y0);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.X1());
+    ImGui::Text("%d", x1);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.Y1());
+    ImGui::Text("%d", y1);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.XOff());
+    ImGui::Text("%d", x_off);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.YOff());
+    ImGui::Text("%d", y_off);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.X0() - info.XOff());
+    ImGui::Text("%d", x0 - x_off);
     ImGui::TableNextColumn();
-    ImGui::Text("%d", info.Y0() - info.YOff());
+    ImGui::Text("%d", y0 - y_off);
     if (show_raw_scissors)
     {
       ImGui::TableNextColumn();
       ImGui::TextColored(COLORS[index % COLORS.size()], "Raw");
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.x0);
+      ImGui::Text("%d", info.scissor_tl.x_full.Value());
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.y0);
+      ImGui::Text("%d", info.scissor_tl.y_full.Value());
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.x1);
+      ImGui::Text("%d", info.scissor_br.x_full.Value());
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.y1);
+      ImGui::Text("%d", info.scissor_br.y_full.Value());
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.xOff);
+      ImGui::Text("%d", info.scissor_off.x_full.Value());
       ImGui::TableNextColumn();
-      ImGui::Text("%d", info.yOff);
+      ImGui::Text("%d", info.scissor_off.y_full.Value());
       ImGui::TableNextColumn();
       ImGui::TableNextColumn();
     }
@@ -408,17 +377,17 @@ void Statistics::DisplayScissor()
     ImGui::TableHeadersRow();
   };
   const auto draw_viewport_table_row = [&](size_t index) {
-    const auto& info = scissor_info[index].viewport;
+    const auto& info = scissors[index];
     ImGui::TableNextColumn();
     ImGui::TextColored(COLORS[index % COLORS.size()], "%zu", index + 1);
     ImGui::TableNextColumn();
-    ImGui::Text("%.1f", info.vx0);
+    ImGui::Text("%.1f", info.viewport_left);
     ImGui::TableNextColumn();
-    ImGui::Text("%.1f", info.vy0);
+    ImGui::Text("%.1f", info.viewport_top);
     ImGui::TableNextColumn();
-    ImGui::Text("%.1f", info.vx1);
+    ImGui::Text("%.1f", info.viewport_right);
     ImGui::TableNextColumn();
-    ImGui::Text("%.1f", info.vy1);
+    ImGui::Text("%.1f", info.viewport_bottom);
   };
   const auto viewport_table_skip_row = [&](size_t index) {
     ImGui::TableNextRow();
@@ -427,7 +396,7 @@ void Statistics::DisplayScissor()
   };
   if (current_scissor == 0)
   {
-    for (size_t i = 0; i < scissor_info.size(); i++)
+    for (size_t i = 0; i < scissors.size(); i++)
       draw_scissor(i);
     if (show_text)
     {
@@ -436,9 +405,9 @@ void Statistics::DisplayScissor()
         if (ImGui::BeginTable("Scissors", NUM_SCISSOR_COLUMNS))
         {
           draw_scissor_table_header();
-          for (size_t i = 0; i < scissor_info.size(); i++)
+          for (size_t i = 0; i < scissors.size(); i++)
             draw_scissor_table_row(i);
-          for (size_t i = scissor_info.size(); i < scissor_expected_count; i++)
+          for (size_t i = scissors.size(); i < scissor_expected_count; i++)
             scissor_table_skip_row(i);
           ImGui::EndTable();
         }
@@ -448,16 +417,16 @@ void Statistics::DisplayScissor()
         if (ImGui::BeginTable("Viewports", NUM_VIEWPORT_COLUMNS))
         {
           draw_viewport_table_header();
-          for (size_t i = 0; i < scissor_info.size(); i++)
+          for (size_t i = 0; i < scissors.size(); i++)
             draw_viewport_table_row(i);
-          for (size_t i = scissor_info.size(); i < scissor_expected_count; i++)
+          for (size_t i = scissors.size(); i < scissor_expected_count; i++)
             viewport_table_skip_row(i);
           ImGui::EndTable();
         }
       }
     }
   }
-  else if (current_scissor <= scissor_info.size())
+  else if (current_scissor <= scissors.size())
   {
     // This bounds check is needed since we only clamp when changing the value; different frames may
     // have different numbers

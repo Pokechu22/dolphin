@@ -299,8 +299,7 @@ void VertexShaderManager::SetConstants()
 
     dirty = true;
     BPFunctions::SetScissorAndViewport();
-
-    g_stats.AddScissorRect(bpmem, xfmem);
+    g_stats.AddScissorRect();
   }
 
   if (bProjectionChanged || g_freelook_camera.GetController()->IsDirty())

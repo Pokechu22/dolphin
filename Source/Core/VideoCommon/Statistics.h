@@ -6,8 +6,7 @@
 #include <array>
 #include <vector>
 
-#include "VideoCommon/BPMemory.h"
-struct XFMemory;
+#include "VideoCommon/BPFunctions.h"
 
 struct Statistics
 {
@@ -26,46 +25,7 @@ struct Statistics
   std::array<float, 16> gproj;
   std::array<float, 16> g2proj;
 
-  struct RectangleInfo
-  {
-    struct ScissorInfo
-    {
-      ScissorInfo(const BPMemory& bpmemory);
-      bool operator==(const ScissorInfo& other) const;
-
-      ScissorPos tl;
-      ScissorPos br;
-      ScissorOffset off;
-
-      constexpr int X0() const { return x0 - 342; }
-      constexpr int Y0() const { return y0 - 342; }
-      constexpr int X1() const { return x1 - 342 + 1; }
-      constexpr int Y1() const { return y1 - 342 + 1; }
-      // These are in the source file so I can change them without rebuilding
-      // constexpr int XOff() const { return (xOff << 1) - 342; }
-      // constexpr int YOff() const { return (yOff << 1) - 342; }
-      int XOff() const;
-      int YOff() const;
-    };
-    struct ViewportInfo
-    {
-      ViewportInfo(const XFMemory& xfmemory);
-      bool operator==(const ViewportInfo& other) const;
-
-      float vx0;
-      float vy0;
-      float vx1;
-      float vy1;
-    };
-
-    RectangleInfo(const BPMemory& bpmemory, const XFMemory& xfmemory);
-    bool Matches(const RectangleInfo& other, bool show_scissors, bool show_viewports) const;
-
-    ScissorInfo scissor;
-    ViewportInfo viewport;
-  };
-
-  std::vector<RectangleInfo> scissor_info;
+  std::vector<BPFunctions::ScissorResult> scissors;
   size_t current_scissor = 0;  // 0 => all, otherwise index + 1
   int scissor_scale = 10;
   int scissor_expected_count = 0;
@@ -115,7 +75,7 @@ struct Statistics
   ThisFrame this_frame;
   void ResetFrame();
   void SwapDL();
-  void AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemory);
+  void AddScissorRect();
   void Display() const;
   void DisplayProj() const;
   void DisplayScissor();

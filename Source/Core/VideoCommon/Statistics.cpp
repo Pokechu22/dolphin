@@ -136,6 +136,7 @@ void Statistics::AddScissorRect(const BPMemory& bpmemory, const XFMemory& xfmemo
   if (clear_scissors)
   {
     scissor_info.clear();
+    clear_scissors = false;
   }
 
   RectangleInfo info{bpmemory, xfmemory};

@@ -283,14 +283,18 @@ void Statistics::DisplayScissor()
       draw_rect(info.viewport_left, info.viewport_top, info.viewport_right, info.viewport_bottom,
                 col);
     }
-    for (const auto& r : info.m_result)
+    for (size_t i = 0; i < info.m_result.size(); i++)
     {
+      // The last entry in the sorted list of results is the one that is used by hardware backends
+      const u8 new_alpha = (i == info.m_result.size() - 1) ? 0x40 : 0x80;
+      const ImU32 new_col = (col & ~IM_COL32_A_MASK) | (new_alpha << IM_COL32_A_SHIFT);
+
+      const auto& r = info.m_result[i];
       draw_list->AddRectFilled(vec(r.rect.left + r.x_off, r.rect.top + r.y_off),
-                               vec(r.rect.right + r.x_off, r.rect.bottom + r.y_off),
-                               col & 0x7fffffff);
+                               vec(r.rect.right + r.x_off, r.rect.bottom + r.y_off), new_col);
     }
   };
-  constexpr auto NUM_SCISSOR_COLUMNS = 7;
+  constexpr auto NUM_SCISSOR_COLUMNS = 8;
   const auto draw_scissor_table_header = [&]() {
     ImGui::TableSetupColumn("#");
     ImGui::TableSetupColumn("x0");
@@ -299,6 +303,7 @@ void Statistics::DisplayScissor()
     ImGui::TableSetupColumn("y1");
     ImGui::TableSetupColumn("xOff");
     ImGui::TableSetupColumn("yOff");
+    ImGui::TableSetupColumn("Affected");
     ImGui::TableHeadersRow();
   };
   const auto draw_scissor_table_row = [&](size_t index) {
@@ -323,6 +328,31 @@ void Statistics::DisplayScissor()
     ImGui::Text("%d", x_off);
     ImGui::TableNextColumn();
     ImGui::Text("%d", y_off);
+
+    // Visualization of where things are updated on screen with this specific scissor
+    ImGui::TableNextColumn();
+    float scale = ImGui::GetTextLineHeight() / EFB_HEIGHT;
+    if (show_raw_scissors)
+      scale += ImGui::GetTextLineHeightWithSpacing() / EFB_HEIGHT;
+    ImVec2 p2 = ImGui::GetCursorScreenPos();
+    // Use a height of 1 since we want this to span two table rows (if possible)
+    ImGui::Dummy(ImVec2(EFB_WIDTH * scale, 1));
+    for (size_t i = 0; i < info.m_result.size(); i++)
+    {
+      // The last entry in the sorted list of results is the one that is used by hardware backends
+      const u8 new_alpha = (i == info.m_result.size() - 1) ? 0x80 : 0x40;
+      const ImU32 col = ImGui::GetColorU32(COLORS[index % COLORS.size()]);
+      const ImU32 new_col = (col & ~IM_COL32_A_MASK) | (new_alpha << IM_COL32_A_SHIFT);
+
+      const auto& r = info.m_result[i];
+      draw_list->AddRectFilled(ImVec2(p2.x + r.rect.left * scale, p2.y + r.rect.top * scale),
+                               ImVec2(p2.x + r.rect.right * scale, p2.y + r.rect.bottom * scale),
+                               new_col);
+    }
+    draw_list->AddRect(p2, ImVec2(p2.x + EFB_WIDTH * scale, p2.y + EFB_HEIGHT * scale), light_grey);
+    ImGui::SameLine();
+    ImGui::Text("%d", int(info.m_result.size()));
+
     if (show_raw_scissors)
     {
       ImGui::TableNextColumn();
@@ -339,6 +369,7 @@ void Statistics::DisplayScissor()
       ImGui::Text("%d", info.scissor_off.x_full.Value());
       ImGui::TableNextColumn();
       ImGui::Text("%d", info.scissor_off.y_full.Value());
+      ImGui::TableNextColumn();
     }
   };
   const auto scissor_table_skip_row = [&](size_t index) {

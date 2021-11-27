@@ -218,44 +218,42 @@ void Statistics::DisplayScissor()
   ImGui::Dummy(ImVec2(1024 * 3 / scissor_scale, 1024 * 3 / scissor_scale));
 
   constexpr int DRAW_START = -1024;
-  // constexpr int DRAW_START = -2048;
   constexpr int DRAW_END = DRAW_START + 3 * 1024;
 
   const auto vec = [&](int x, int y, int xoff = 0, int yoff = 0) {
-    return ImVec2(p.x + (float(x - DRAW_START) / scissor_scale) + xoff,
-                  p.y + (float(y - DRAW_START) / scissor_scale) + yoff);
+    return ImVec2(p.x + int(float(x - DRAW_START) / scissor_scale) + xoff,
+                  p.y + int(float(y - DRAW_START) / scissor_scale) + yoff);
   };
 
-  const auto white = ImGui::GetColorU32(ImVec4(1.f, 1.f, 1.f, 1.f));
   const auto light_grey = ImGui::GetColorU32(ImVec4(.5f, .5f, .5f, 1.f));
-  const auto dark_grey = ImGui::GetColorU32(ImVec4(.25f, .25f, .25f, 1.f));
-  // First draw half-rectangles for copied EFB regions, along with the coordinates
-  for (int x = DRAW_START; x < DRAW_END; x += 1024)
-  {
-    for (int y = DRAW_START; y < DRAW_END; y += 1024)
-    {
-      if (x != 0 || y != 0)
-      {
-        draw_list->AddLine(vec(x, y + EFB_HEIGHT), vec(x + EFB_WIDTH, y + EFB_HEIGHT), dark_grey);
-        draw_list->AddLine(vec(x + EFB_WIDTH, y), vec(x + EFB_WIDTH, y + EFB_HEIGHT), dark_grey);
-      }
-      auto coord = fmt::format("{:+}\n{:+}", x, y);
-      draw_list->AddText(vec(x, y, +3, +2), dark_grey, coord.data());
-    }
-  }
 
-  // Now draw gridlines (over those rectangles)
+  // Draw gridlines
   for (int x = DRAW_START; x <= DRAW_END; x += 1024)
     draw_list->AddLine(vec(x, DRAW_START), vec(x, DRAW_END), light_grey);
   for (int y = DRAW_START; y <= DRAW_END; y += 1024)
     draw_list->AddLine(vec(DRAW_START, y), vec(DRAW_END, y), light_grey);
 
-  // Now draw a white rectangle for the real EFB region
-  draw_list->AddRect(vec(0, 0), vec(EFB_WIDTH, EFB_HEIGHT), white);
-
   const auto draw_x = [&](int x, int y, int size, ImU32 col) {
     draw_list->AddLine(vec(x, y, -size, -size), vec(x, y, +size, +size), col);
     draw_list->AddLine(vec(x, y, -size, +size), vec(x, y, +size, -size), col);
+  };
+  const auto draw_rect = [&](int x0, int y0, int x1, int y1, ImU32 col, bool show_oob = true) {
+    x0 = std::clamp(x0, DRAW_START, DRAW_END);
+    y0 = std::clamp(y0, DRAW_START, DRAW_END);
+    x1 = std::clamp(x1, DRAW_START, DRAW_END);
+    y1 = std::clamp(y1, DRAW_START, DRAW_END);
+    if (x0 < x1 && y0 < y1)
+    {
+      draw_list->AddRect(vec(x0, y0), vec(x1, y1), col);
+    }
+    else if (show_oob)
+    {
+      // Markers at the two corners, for whenthey don't form a valid rectangle.
+      draw_list->AddLine(vec(x0, y0), vec(x0, y0, 8, 0), col);
+      draw_list->AddLine(vec(x0, y0), vec(x0, y0, 0, 8), col);
+      draw_list->AddLine(vec(x1, y1), vec(x1, y1, -8, 0), col);
+      draw_list->AddLine(vec(x1, y1), vec(x1, y1, 0, -8), col);
+    }
   };
   static std::array<ImVec4, 6> COLORS = {
       ImVec4(1, 0, 0, 1), ImVec4(1, 1, 0, 1), ImVec4(0, 1, 0, 1),
@@ -264,40 +262,35 @@ void Statistics::DisplayScissor()
   const auto draw_scissor = [&](size_t index) {
     const auto& info = scissors[index];
     const ImU32 col = ImGui::GetColorU32(COLORS[index % COLORS.size()]);
+    int x_off = info.scissor_off.x << 1;
+    int y_off = info.scissor_off.y << 1;
+    // Subtract 2048 instead of 1024, because when x_off is large enough we need to show two
+    // rectangles in the upper sections
+    for (int y = y_off - 2048; y < DRAW_END; y += 1024)
+    {
+      for (int x = x_off - 2048; x < DRAW_END; x += 1024)
+      {
+        draw_rect(x, y, x + EFB_WIDTH, y + EFB_HEIGHT, col, false);
+      }
+    }
     if (show_scissors)
     {
-      int x_off = (info.scissor_off.x << 1) - info.viewport_left;
-      int y_off = (info.scissor_off.y << 1) - info.viewport_top;
-      int x0 = info.scissor_tl.x - x_off;
-      int x1 = info.scissor_br.x - x_off;
-      int y0 = info.scissor_tl.y - y_off;
-      int y1 = info.scissor_br.y - y_off;
-      draw_x(x_off, y_off, 4, col);
-      if (x0 <= x1 && y0 <= y1)
-      {
-        draw_list->AddRect(vec(x0, y0), vec(x1, y1), col);
-      }
-      else
-      {
-        draw_list->AddLine(vec(x0, y0), vec(x0, y0, 2, 0), col);
-        draw_list->AddLine(vec(x0, y0), vec(x0, y0, 0, 2), col);
-        draw_list->AddLine(vec(x1, y1), vec(x1, y1, 2, 0), col);
-        draw_list->AddLine(vec(x1, y1), vec(x1, y1, 0, 2), col);
-      }
+      draw_rect(info.scissor_tl.x, info.scissor_tl.y, info.scissor_br.x + 1, info.scissor_br.y + 1,
+                col);
     }
     if (show_viewports)
     {
-      draw_list->AddRect(vec(info.viewport_left, info.viewport_top),
-                         vec(info.viewport_right, info.viewport_bottom), col);
+      draw_rect(info.viewport_left, info.viewport_top, info.viewport_right, info.viewport_bottom,
+                col);
     }
     for (const auto& r : info.m_result)
     {
-      draw_x(r.x_off, r.y_off, 2, col & 0x7fffffff);
-      draw_list->AddRectFilled(vec(r.rect.left, r.rect.top),
-                               vec(r.rect.right, r.rect.bottom), col & 0x7fffffff);
+      draw_list->AddRectFilled(vec(r.rect.left + r.x_off, r.rect.top + r.y_off),
+                               vec(r.rect.right + r.x_off, r.rect.bottom + r.y_off),
+                               col & 0x7fffffff);
     }
   };
-  constexpr auto NUM_SCISSOR_COLUMNS = 9;
+  constexpr auto NUM_SCISSOR_COLUMNS = 7;
   const auto draw_scissor_table_header = [&]() {
     ImGui::TableSetupColumn("#");
     ImGui::TableSetupColumn("x0");
@@ -306,8 +299,6 @@ void Statistics::DisplayScissor()
     ImGui::TableSetupColumn("y1");
     ImGui::TableSetupColumn("xOff");
     ImGui::TableSetupColumn("yOff");
-    ImGui::TableSetupColumn("fx0");
-    ImGui::TableSetupColumn("fy0");
     ImGui::TableHeadersRow();
   };
   const auto draw_scissor_table_row = [&](size_t index) {
@@ -332,10 +323,6 @@ void Statistics::DisplayScissor()
     ImGui::Text("%d", x_off);
     ImGui::TableNextColumn();
     ImGui::Text("%d", y_off);
-    ImGui::TableNextColumn();
-    ImGui::Text("%d", x0 - x_off);
-    ImGui::TableNextColumn();
-    ImGui::Text("%d", y0 - y_off);
     if (show_raw_scissors)
     {
       ImGui::TableNextColumn();
@@ -352,8 +339,6 @@ void Statistics::DisplayScissor()
       ImGui::Text("%d", info.scissor_off.x_full.Value());
       ImGui::TableNextColumn();
       ImGui::Text("%d", info.scissor_off.y_full.Value());
-      ImGui::TableNextColumn();
-      ImGui::TableNextColumn();
     }
   };
   const auto scissor_table_skip_row = [&](size_t index) {

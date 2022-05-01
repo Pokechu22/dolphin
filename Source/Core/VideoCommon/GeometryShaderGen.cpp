@@ -69,7 +69,7 @@ ShaderCode GenerateGeometryShaderCode(APIType api_type, const ShaderHostConfig& 
   u32 vertex_out = vertex_out_map[primitive_type];
 
   if (wireframe)
-    vertex_out++;
+    vertex_out *= 6;
 
   if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
   {
@@ -309,7 +309,8 @@ ShaderCode GenerateGeometryShaderCode(APIType api_type, const ShaderHostConfig& 
 
   out.Write("\t}}\n");
 
-  EndPrimitive(out, host_config, uid_data, api_type, wireframe, stereo);
+  if (!wireframe)
+    EndPrimitive(out, host_config, uid_data, api_type, wireframe, stereo);
 
   if (stereo && !host_config.backend_gs_instancing)
     out.Write("\t}}\n");
@@ -354,18 +355,42 @@ static void EmitVertex(ShaderCode& out, const ShaderHostConfig& host_config,
       out.Write("\tgl_Layer = eye;\n");
   }
 
-  if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
+  /*if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
     out.Write("\tEmitVertex();\n");
   else
-    out.Write("\toutput.Append(ps);\n");
+    out.Write("\toutput.Append(ps);\n");*/
+
+  out.Write("\tps.o.colors_0 = float4(1, 0, 0, 1);\n"
+            "\toutput.Append(ps);\n"
+            "\tps.o = {0};\n"
+            "\tps.o.colors_0 = float4(1, 0, 0, 1);\n"
+            "\tps.o.pos.xyz += normalize(ps.o.Normal.xyz) * 8;\n"
+            "\toutput.Append(ps);\n"
+            "\toutput.RestartStrip();\n"
+            "\tps.o = {0};\n"
+            "\tps.o.colors_0 = float4(0, 0, 1, 1);\n"
+            "\toutput.Append(ps);\n"
+            "\tps.o = {0};\n"
+            "\tps.o.colors_0 = float4(0, 0, 1, 1);\n"
+            "\tps.o.pos.xyz += normalize(ps.o.Tangent.xyz) * 8;\n"
+            "\toutput.Append(ps);\n"
+            "\toutput.RestartStrip();\n"
+            "\tps.o = {0};\n"
+            "\tps.o.colors_0 = float4(0, 1, 0, 1);\n"
+            "\toutput.Append(ps);\n"
+            "\tps.o = {0};\n"
+            "\tps.o.colors_0 = float4(0, 1, 0, 1);\n"
+            "\tps.o.pos.xyz += normalize(ps.o.Binormal.xyz) * 8;\n"
+            "\toutput.Append(ps);\n"
+            "\toutput.RestartStrip();\n", vertex);
 }
 
 static void EndPrimitive(ShaderCode& out, const ShaderHostConfig& host_config,
                          const geometry_shader_uid_data* uid_data, APIType api_type, bool wireframe,
                          bool stereo)
 {
-  if (wireframe)
-    EmitVertex(out, host_config, uid_data, "first", api_type, wireframe, stereo);
+  // if (wireframe)
+  //   EmitVertex(out, host_config, uid_data, "first", api_type, wireframe, stereo);
 
   if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
     out.Write("\tEndPrimitive();\n");

@@ -1376,7 +1376,7 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
         perf_sample.num_draw_calls = g_stats.this_frame.num_draw_calls;
         DolphinAnalytics::Instance().ReportPerformanceInfo(std::move(perf_sample));
 
-        if (IsFrameDumping())
+        if (IsFrameDumping() && (Movie::GetCurrentFrame() % 300 == 0))
           DumpCurrentFrame(xfb_entry->texture.get(), xfb_rect, ticks, m_frame_count);
 
         // Begin new frame

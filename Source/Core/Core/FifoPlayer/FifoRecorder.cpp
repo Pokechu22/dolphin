@@ -10,7 +10,6 @@
 #include "Common/MsgHandler.h"
 #include "Common/Thread.h"
 
-#include "Core/Movie.h"
 #include "Core/ConfigManager.h"
 #include "Core/HW/Memmap.h"
 
@@ -372,25 +371,7 @@ void FifoRecorder::SetVideoMemory(const u32* bpMem, const u32* cpMem, const u32*
 
 bool FifoRecorder::IsRecording() const
 {
-  u64 frame = Movie::GetCurrentFrame();
-  bool valid = false;
-  if (frame < 30000)
-  {
-    frame -= 4185;
-    valid = (frame % 301) == 0;
-  }
-  // The game lags at about this point, and the 301 rule breaks temporarily.  This seems to be
-  // the best set of frames.
-  else if (frame < 31224)
-  {
-    valid = (frame == 30070 || frame == 30420 || frame == 30927);
-  }
-  else
-  {
-    frame -= 31224;
-    valid = (frame % 301) == 0;
-  }
-  return m_IsRecording && valid;
+  return m_IsRecording;
 }
 
 FifoRecorder& FifoRecorder::GetInstance()

@@ -336,10 +336,16 @@ void CheatSearchWidget::OnNextScanClicked()
     const bool show_in_hex = m_display_values_in_hex_checkbox->isChecked();
     const bool too_many_results = new_count > TABLE_MAX_ROWS;
     const size_t result_count_to_display = too_many_results ? TABLE_MAX_ROWS : new_count;
-    for (size_t i = 0; i < result_count_to_display; ++i)
+    size_t j = 0;
+    for (size_t i = 0; i < new_count; ++i)
     {
+      if (m_session->GetResultValueState(i) == Cheats::SearchResultValueState::AddressNotAccessible)
+        continue;
+
       m_address_table_current_values[m_session->GetResultAddress(i)] =
           m_session->GetResultValueAsString(i, show_in_hex);
+      if (j++ > result_count_to_display)
+        break;
     }
 
     UpdateGuiTable();

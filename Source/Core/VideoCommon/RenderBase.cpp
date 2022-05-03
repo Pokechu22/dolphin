@@ -1376,25 +1376,7 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
         perf_sample.num_draw_calls = g_stats.this_frame.num_draw_calls;
         DolphinAnalytics::Instance().ReportPerformanceInfo(std::move(perf_sample));
 
-        u64 frame = Movie::GetCurrentFrame();
-        bool valid = false;
-        if (frame < 30000)
-        {
-          frame -= 4185;
-          valid = (frame % 301) == 0;
-        }
-        // The game lags at about this point, and the 301 rule breaks temporarily.  This seems to be
-        // the best set of frames.
-        else if (frame < 31224)
-        {
-          valid = (frame == 30070 || frame == 30420 || frame == 30927);
-        }
-        else
-        {
-          frame -= 31224;
-          valid = (frame % 301) == 0;
-        }
-        if (IsFrameDumping() && valid)
+        if (IsFrameDumping())
           DumpCurrentFrame(xfb_entry->texture.get(), xfb_rect, ticks, m_frame_count);
 
         // Begin new frame

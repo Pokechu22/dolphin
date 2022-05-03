@@ -157,10 +157,6 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
       {
         out.Write("VARYING_LOCATION({}) {} out float3 Normal;\n", counter++,
                   GetInterpolationQualifier(msaa, ssaa));
-        out.Write("VARYING_LOCATION({}) {} out float3 Tangent;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
-        out.Write("VARYING_LOCATION({}) {} out float3 Binormal;\n", counter++,
-                  GetInterpolationQualifier(msaa, ssaa));
         out.Write("VARYING_LOCATION({}) {} out float3 WorldPos;\n", counter++,
                   GetInterpolationQualifier(msaa, ssaa));
       }
@@ -466,8 +462,6 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   if (per_pixel_lighting)
   {
     out.Write("o.Normal = _normal;\n"
-              "o.Tangent = _tangent;\n"
-              "o.Binormal = _binormal;\n"
               "o.WorldPos = pos.xyz;\n");
   }
 

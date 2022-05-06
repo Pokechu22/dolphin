@@ -167,6 +167,8 @@ constexpr Common::EnumMap<const char*, TevOutput::Color2> tev_a_output_table{
     "c2.a",
 };
 
+extern volatile int EmbossModeOverride;
+
 // FIXME: Some of the video card's capabilities (BBox support, EarlyZ support, dstAlpha support)
 //        leak into this UID; This is really unhelpful if these UIDs ever move from one machine to
 //        another.
@@ -338,8 +340,120 @@ PixelShaderUid GetPixelShaderUid()
   uid_data->logic_op_enable = state.logicopenable;
   uid_data->logic_op_mode = u32(state.logicmode.Value());
 
+  bool is_special =
+      // Walls and floor
+      (numStages >= 3 && bpmem.combiners[0].colorC.hex == 0x00f8aa &&
+       bpmem.combiners[1].colorC.hex == 0x8cf8a0 && bpmem.combiners[2].colorC.hex == 0x08f84f) ||
+      // X-wing
+      (numStages >= 3 && bpmem.combiners[0].colorC.hex == 0x00f9aa &&
+       bpmem.combiners[1].colorC.hex == 0x8cf9a0 && bpmem.combiners[2].colorC.hex == 0x08f84f);
+
+  if (is_special)
+  {
+    TevStageCombiner::ColorCombiner cc0 = bpmem.combiners[0].colorC;
+    TevStageCombiner::ColorCombiner cc1 = bpmem.combiners[1].colorC;
+    TevStageCombiner::ColorCombiner cc2 = bpmem.combiners[2].colorC;
+    switch (EmbossModeOverride)
+    {
+    case 1:
+      // Mode 1: show the rasterized color only (from the d component)
+      cc0.b = cc0.c = TevColorArg::Zero;
+      cc1.b = cc1.c = TevColorArg::Zero;
+      // ... and disable texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 2:
+      // Mode 2: show what everything would look like without the rasterized color
+      cc0.c = cc0.d = TevColorArg::One;
+      cc1.c = TevColorArg::One;
+      // ... and disable texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 3:
+      // Mode 3: show the rasterized color only (from the d component)
+      cc0.b = cc0.c = TevColorArg::Zero;
+      cc1.b = cc1.c = TevColorArg::Zero;
+      break;
+    case 4:
+      // Mode 4: show what everything would look like without the rasterized color
+      cc0.c = cc0.d = TevColorArg::One;
+      cc1.c = TevColorArg::One;
+      break;
+    case 5:
+      // Mode 5: show what everything would look like without the rasterized color, but use gray as
+      // the default
+      cc0.c = cc0.d = TevColorArg::Half;
+      cc1.c = TevColorArg::Half;
+      // ... and disable texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 6:
+      // Mode 6: Show only the first height texture lookup
+      cc0.d = cc0.b;  // Tex color or alpha as appropriate
+      cc0.b = cc0.c = TevColorArg::Zero;
+      cc1.b = cc1.c = TevColorArg::Zero;
+      // ... and disable texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 7:
+      // Mode 7: Show only the second height texture lookup
+      cc0.b = cc0.c = cc0.d = TevColorArg::Zero;
+      cc1.d = cc1.b;
+      cc1.b = cc1.c = TevColorArg::Zero;
+      // ... and disable texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 8:
+      // Mode 8: rasterized + emboss but no texturing
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 9:
+      // Mode 9: rasterized + first height but no texture
+      cc1.b = TevColorArg::Zero;
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 10:
+      // Mode 10: rasterized + second height but no texture
+      cc0.b = TevColorArg::Zero;
+      cc1.op = TevOp::Add;
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 11:
+      // Mode 11: rasterized * first height but no texture
+      // (don't add, only multiply; normally added AND multiplied)
+      cc1.b = TevColorArg::Zero;
+      cc0.d = TevColorArg::Zero;
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    case 12:
+      // Mode 12: rasterized * second height but no texture
+      // (don't add, only multiply; normally added AND multiplied)
+      cc0.b = TevColorArg::Zero;
+      cc0.d = TevColorArg::Zero;
+      cc1.op = TevOp::Add;
+      cc2.b = cc2.c = TevColorArg::Zero;
+      cc2.d = TevColorArg::Color1;
+      break;
+    }
+    uid_data->stagehash[0].cc = cc0.hex & 0xFFFFFF;
+    uid_data->stagehash[1].cc = cc1.hex & 0xFFFFFF;
+    uid_data->stagehash[2].cc = cc2.hex & 0xFFFFFF;
+  }
+
   return out;
 }
+
+// Edit this using the debugger (or just change the value ahead of time)
+volatile int EmbossModeOverride = 0;
 
 void ClearUnusedPixelShaderUidBits(APIType api_type, const ShaderHostConfig& host_config,
                                    PixelShaderUid* uid)

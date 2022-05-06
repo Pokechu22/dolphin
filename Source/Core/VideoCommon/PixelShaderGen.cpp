@@ -1358,9 +1358,6 @@ static void WriteStage(ShaderCode& out, const pixel_shader_uid_data* uid_data, i
   const auto& stage = uid_data->stagehash[n];
   out.Write("\n\t// TEV stage {}\n", n);
 
-  bool is_special = uid_data->genMode_numtevstages + 1 == 7 && uid_data->stagehash[3].cc == 0x40f800 &&
-                    uid_data->stagehash[4].cc == 0x4cf802 && uid_data->stagehash[5].cc == 0x0802bf;
-
   // Quirk: when the tex coord is not less than the number of tex gens (i.e. the tex coord does not
   // exist), then tex coord 0 is used (though sometimes glitchy effects happen on console).
   u32 texcoord = stage.tevorders_texcoord;
@@ -1595,17 +1592,6 @@ static void WriteStage(ShaderCode& out, const pixel_shader_uid_data* uid_data, i
   TevStageCombiner::AlphaCombiner ac;
   cc.hex = stage.cc;
   ac.hex = stage.ac;
-
-  if (is_special && n == 0)
-  {
-    cc.a = cc.b = cc.c = TevColorArg::Zero;
-    cc.d = TevColorArg::One;
-  }
-  if (is_special && n == 2)
-  {
-    cc.a = cc.b = cc.c = TevColorArg::Zero;
-    cc.d = TevColorArg::Half;
-  }
 
   if (cc.a == TevColorArg::RasAlpha || cc.a == TevColorArg::RasColor ||
       cc.b == TevColorArg::RasAlpha || cc.b == TevColorArg::RasColor ||

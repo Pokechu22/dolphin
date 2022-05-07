@@ -153,14 +153,13 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
         out.Write("VARYING_LOCATION({}) {} out float4 clipPos;\n", counter++,
                   GetInterpolationQualifier(msaa, ssaa));
       }
-      out.Write("VARYING_LOCATION({}) {} out float3 Normal;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float3 Tangent;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float3 Binormal;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float3 WorldPos;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
+      if (per_pixel_lighting)
+      {
+        out.Write("VARYING_LOCATION({}) {} out float3 Normal;\n", counter++,
+                  GetInterpolationQualifier(msaa, ssaa));
+        out.Write("VARYING_LOCATION({}) {} out float3 WorldPos;\n", counter++,
+                  GetInterpolationQualifier(msaa, ssaa));
+      }
     }
 
     out.Write("void main()\n{{\n");
@@ -460,10 +459,11 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   if (!host_config.fast_depth_calc)
     out.Write("o.clipPos = o.pos;\n");
 
-  out.Write("o.Normal = _normal;\n"
-            "o.Tangent = _tangent;\n"
-            "o.Binormal = _binormal;\n"
-            "o.WorldPos = pos.xyz;\n");
+  if (per_pixel_lighting)
+  {
+    out.Write("o.Normal = _normal;\n"
+              "o.WorldPos = pos.xyz;\n");
+  }
 
   // If we can disable the incorrect depth clipping planes using depth clamping, then we can do
   // our own depth clipping and calculate the depth range before the perspective divide if
@@ -547,7 +547,7 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
               "\to.pos.y = ((ss_pixel_y / (" I_VIEWPORT_SIZE ".y * 0.5f)) - 1.0f);\n"
               "}}\n");
   }
-  out.Write("\to.OverrideColor = float4(0.0, 0.0, 0.0, 0.0);\n");
+
   if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
   {
     if (host_config.backend_geometry_shaders)

@@ -100,5 +100,4 @@ struct GeometryShaderConstants
   float4 stereoparams;
   float4 lineptparams;
   int4 texoffset;
-  std::array<float4, 4> projection;
 };

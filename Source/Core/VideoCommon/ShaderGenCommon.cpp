@@ -166,13 +166,13 @@ void GenerateVSOutputMembers(ShaderCode& object, APIType api_type, u32 texgens,
   if (!host_config.fast_depth_calc)
     DefineOutputMember(object, api_type, qualifier, "float4", "clipPos", -1, "TEXCOORD", texgens);
 
-  DefineOutputMember(object, api_type, qualifier, "float3", "Normal", -1, "TEXCOORD", texgens + 1);
-  DefineOutputMember(object, api_type, qualifier, "float3", "Tangent", -1, "TEXCOORD", texgens + 2);
-  DefineOutputMember(object, api_type, qualifier, "float3", "Binormal", -1, "TEXCOORD",
-                     texgens + 3);
-  DefineOutputMember(object, api_type, qualifier, "float3", "WorldPos", -1, "TEXCOORD",
-                     texgens + 4);
-  DefineOutputMember(object, api_type, qualifier, "float4", "OverrideColor", -1, "COLOR", 2);
+  if (host_config.per_pixel_lighting)
+  {
+    DefineOutputMember(object, api_type, qualifier, "float3", "Normal", -1, "TEXCOORD",
+                       texgens + 1);
+    DefineOutputMember(object, api_type, qualifier, "float3", "WorldPos", -1, "TEXCOORD",
+                       texgens + 2);
+  }
 
   if (host_config.backend_geometry_shaders)
   {
@@ -194,11 +194,11 @@ void AssignVSOutputMembers(ShaderCode& object, std::string_view a, std::string_v
   if (!host_config.fast_depth_calc)
     object.Write("\t{}.clipPos = {}.clipPos;\n", a, b);
 
-  object.Write("\t{}.Normal = {}.Normal;\n", a, b);
-  object.Write("\t{}.Tangent = {}.Tangent;\n", a, b);
-  object.Write("\t{}.Binormal = {}.Binormal;\n", a, b);
-  object.Write("\t{}.WorldPos = {}.WorldPos;\n", a, b);
-  object.Write("\t{}.OverrideColor = {}.OverrideColor;\n", a, b);
+  if (host_config.per_pixel_lighting)
+  {
+    object.Write("\t{}.Normal = {}.Normal;\n", a, b);
+    object.Write("\t{}.WorldPos = {}.WorldPos;\n", a, b);
+  }
 
   if (host_config.backend_geometry_shaders)
   {

@@ -1149,16 +1149,13 @@ ShaderCode GeneratePixelShaderCode(APIType api_type, const ShaderHostConfig& hos
         out.Write("VARYING_LOCATION({}) {} in float4 clipPos;\n", counter++,
                   GetInterpolationQualifier(msaa, ssaa));
       }
-      out.Write("VARYING_LOCATION({}) {} in float3 Normal;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} in float3 Tangent;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} in float3 Binormal;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} in float3 WorldPos;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} in float4 OverrideColor;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
+      if (per_pixel_lighting)
+      {
+        out.Write("VARYING_LOCATION({}) {} in float3 Normal;\n", counter++,
+                  GetInterpolationQualifier(msaa, ssaa));
+        out.Write("VARYING_LOCATION({}) {} in float3 WorldPos;\n", counter++,
+                  GetInterpolationQualifier(msaa, ssaa));
+      }
     }
 
     out.Write("void main()\n{{\n");
@@ -1218,15 +1215,13 @@ ShaderCode GeneratePixelShaderCode(APIType api_type, const ShaderHostConfig& hos
       out.Write(",\n  in {} float4 clipPos : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
                 uid_data->genMode_numtexgens);
     }
-    out.Write(",\n  in {} float3 Normal : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
-              uid_data->genMode_numtexgens + 1);
-    out.Write(",\n  in {} float3 Tangent : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
-              uid_data->genMode_numtexgens + 2);
-    out.Write(",\n  in {} float3 Binormal : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
-              uid_data->genMode_numtexgens + 3);
-    out.Write(",\n  in {} float3 WorldPos : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
-              uid_data->genMode_numtexgens + 4);
-    out.Write(",\n  in {} float4 OverrideColor : COLOR2", GetInterpolationQualifier(msaa, ssaa));
+    if (per_pixel_lighting)
+    {
+      out.Write(",\n  in {} float3 Normal : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
+                uid_data->genMode_numtexgens + 1);
+      out.Write(",\n  in {} float3 WorldPos : TEXCOORD{}", GetInterpolationQualifier(msaa, ssaa),
+                uid_data->genMode_numtexgens + 2);
+    }
     if (host_config.backend_geometry_shaders)
     {
       out.Write(",\n  in float clipDist0 : SV_ClipDistance0\n"
@@ -2114,10 +2109,6 @@ static void WriteLogicOp(ShaderCode& out, const pixel_shader_uid_data* uid_data)
 static void WriteColor(ShaderCode& out, APIType api_type, const pixel_shader_uid_data* uid_data,
                        bool use_dual_source)
 {
-  out.Write("\tif (OverrideColor.a != 0.0) {{\n"
-            "\t\tprev.rgb = int3(OverrideColor.rgb * 255);\n"
-            "\t}}\n");
-
   // D3D requires that the shader outputs be uint when writing to a uint render target for logic op.
   if (api_type == APIType::D3D && uid_data->uint_output)
   {

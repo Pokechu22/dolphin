@@ -8,6 +8,7 @@
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 #include "VideoCommon/BPMemory.h"
+#include "VideoCommon/VertexShaderManager.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/XFMemory.h"
 
@@ -70,6 +71,12 @@ void GeometryShaderManager::SetConstants()
     constants.lineptparams[0] = 2.0f * xfmem.viewport.wd;
     constants.lineptparams[1] = -2.0f * xfmem.viewport.ht;
 
+    dirty = true;
+  }
+
+  if (VertexShaderManager::constants.projection != constants.projection)
+  {
+    constants.projection = VertexShaderManager::constants.projection;
     dirty = true;
   }
 }

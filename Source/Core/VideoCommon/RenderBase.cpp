@@ -96,9 +96,20 @@ static float AspectToWidescreen(float aspect)
 
 static bool DumpFrameToPNG(const FrameDump::FrameData& frame, const std::string& file_name)
 {
-  return Common::ConvertRGBAToRGBAndSavePNG(file_name, frame.data, frame.width, frame.height,
-                                            frame.stride,
-                                            Config::Get(Config::GFX_PNG_COMPRESSION_LEVEL));
+  u32 width = frame.width;
+  u32 height = frame.height;
+  u32 x_off = 0;
+  u32 y_off = 0;
+  if (width == 5120 && height == 3948)
+  {
+    width = 1920;
+    height = 1080;
+    x_off = 1848;
+    y_off = 2624;
+  }
+  return Common::ConvertRGBAToRGBAndSavePNG(file_name, frame.data, width, height, frame.stride,
+                                            Config::Get(Config::GFX_PNG_COMPRESSION_LEVEL), x_off,
+                                            y_off);
 }
 
 Renderer::Renderer(int backbuffer_width, int backbuffer_height, float backbuffer_scale,

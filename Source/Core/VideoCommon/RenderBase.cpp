@@ -554,6 +554,8 @@ void Renderer::CheckForConfigChanges()
   }
 }
 
+extern int EmbossModeOverride;
+
 // Create On-Screen-Messages
 void Renderer::DrawDebugText()
 {
@@ -629,6 +631,8 @@ void Renderer::DrawDebugText()
 
   if (g_ActiveConfig.bOverlayScissorStats)
     g_stats.DisplayScissor();
+
+  DrawEmbossTestUI();
 
   const std::string profile_output = Common::Profiler::ToString();
   if (!profile_output.empty())

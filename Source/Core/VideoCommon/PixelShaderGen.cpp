@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <fmt/format.h>
+#include <imgui.h>
 
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
@@ -167,7 +168,27 @@ constexpr Common::EnumMap<const char*, TevOutput::Color2> tev_a_output_table{
     "c2.a",
 };
 
-extern volatile int EmbossModeOverride;
+namespace EmbossTest
+{
+int g_mode_override = 0;
+bool g_floor_1 = false;   // floor and walls in select craft screen
+bool g_x_wing_1 = false;  // x-wing in select craft screen, no self-shadowing
+bool g_x_wing_2 = true;  // x-wing in levels
+bool g_disable_self_shadowing = false;
+};  // namespace EmbossTest
+
+void DrawEmbossTestUI()
+{
+  if (ImGui::Begin("Emboss Test", nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+  {
+    ImGui::InputInt("Mode", &EmbossTest::g_mode_override);
+    ImGui::Checkbox("Floor 1", &EmbossTest::g_floor_1);
+    ImGui::Checkbox("X-wing 1", &EmbossTest::g_x_wing_1);
+    ImGui::Checkbox("X-wing 2", &EmbossTest::g_x_wing_2);
+    ImGui::Checkbox("No self shadowing", &EmbossTest::g_disable_self_shadowing);
+  }
+  ImGui::End();
+}
 
 // FIXME: Some of the video card's capabilities (BBox support, EarlyZ support, dstAlpha support)
 //        leak into this UID; This is really unhelpful if these UIDs ever move from one machine to
@@ -340,20 +361,36 @@ PixelShaderUid GetPixelShaderUid()
   uid_data->logic_op_enable = state.logicopenable;
   uid_data->logic_op_mode = u32(state.logicmode.Value());
 
-  bool is_special =
-      // Walls and floor
-      (numStages >= 3 && bpmem.combiners[0].colorC.hex == 0x00f8aa &&
-       bpmem.combiners[1].colorC.hex == 0x8cf8a0 && bpmem.combiners[2].colorC.hex == 0x08f84f) ||
-      // X-wing
-      (numStages >= 3 && bpmem.combiners[0].colorC.hex == 0x00f9aa &&
-       bpmem.combiners[1].colorC.hex == 0x8cf9a0 && bpmem.combiners[2].colorC.hex == 0x08f84f);
+  bool is_special = false;
+  int rgb_stage = -1;
+  if (EmbossTest::g_floor_1)
+  {
+    rgb_stage = 2;
+    is_special |=
+        (bpmem.combiners[0].colorC.hex == 0x00f8aa && bpmem.combiners[1].colorC.hex == 0x8cf8a0 &&
+         bpmem.combiners[rgb_stage].colorC.hex == 0x08f84f);
+  }
+  if (EmbossTest::g_x_wing_1)
+  {
+    rgb_stage = 2;
+    is_special |=
+        (bpmem.combiners[0].colorC.hex == 0x00f9aa && bpmem.combiners[1].colorC.hex == 0x8cf9a0 &&
+         bpmem.combiners[rgb_stage].colorC.hex == 0x08f84f);
+  }
+  if (EmbossTest::g_x_wing_2)
+  {
+    rgb_stage = 4;
+    is_special =
+        (bpmem.combiners[0].colorC.hex == 0x00f9aa && bpmem.combiners[1].colorC.hex == 0x8cf9a0 &&
+         bpmem.combiners[rgb_stage].colorC.hex == 0x08f84f);
+  }
 
   if (is_special)
   {
     TevStageCombiner::ColorCombiner cc0 = bpmem.combiners[0].colorC;
     TevStageCombiner::ColorCombiner cc1 = bpmem.combiners[1].colorC;
-    TevStageCombiner::ColorCombiner cc2 = bpmem.combiners[2].colorC;
-    switch (EmbossModeOverride)
+    TevStageCombiner::ColorCombiner cc2 = bpmem.combiners[rgb_stage].colorC;
+    switch (EmbossTest::g_mode_override)
     {
     case 1:
       // Mode 1: show the rasterized color only (from the d component)
@@ -443,17 +480,34 @@ PixelShaderUid GetPixelShaderUid()
       cc2.b = cc2.c = TevColorArg::Zero;
       cc2.d = TevColorArg::Color1;
       break;
+    case 13:
+      // Mode 13: rasterized * second height with texture
+      // (don't add, only multiply; normally added AND multiplied)
+      cc0.b = TevColorArg::Zero;
+      cc0.d = TevColorArg::Zero;
+      cc1.op = TevOp::Add;
+      break;
+    case 14:
+      // Mode 14: Show only the second height texture lookup
+      cc0.b = cc0.c = cc0.d = TevColorArg::Zero;
+      cc1.d = cc1.b;
+      cc1.b = cc1.c = TevColorArg::Zero;
+      break;
     }
     uid_data->stagehash[0].cc = cc0.hex & 0xFFFFFF;
     uid_data->stagehash[1].cc = cc1.hex & 0xFFFFFF;
-    uid_data->stagehash[2].cc = cc2.hex & 0xFFFFFF;
+    uid_data->stagehash[rgb_stage].cc = cc2.hex & 0xFFFFFF;
+
+    if (EmbossTest::g_disable_self_shadowing)
+    {
+      TevStageCombiner::AlphaCombiner ac2 = bpmem.combiners[2].alphaC;
+      ac2.d = TevAlphaArg::Zero;
+      uid_data->stagehash[2].ac = ac2.hex & 0xFFFFFF;
+    }
   }
 
   return out;
 }
-
-// Edit this using the debugger (or just change the value ahead of time)
-volatile int EmbossModeOverride = 0;
 
 void ClearUnusedPixelShaderUidBits(APIType api_type, const ShaderHostConfig& host_config,
                                    PixelShaderUid* uid)

@@ -164,3 +164,5 @@ void WritePixelShaderCommonHeader(ShaderCode& out, APIType api_type,
 void ClearUnusedPixelShaderUidBits(APIType api_type, const ShaderHostConfig& host_config,
                                    PixelShaderUid* uid);
 PixelShaderUid GetPixelShaderUid();
+
+void DrawEmbossTestUI();

@@ -149,26 +149,25 @@ bool SavePNG(const std::string& path, const u8* input, ImageByteFormat format, u
 }
 
 bool ConvertRGBAToRGBAndSavePNG(const std::string& path, const u8* input, u32 width, u32 height,
-                                int stride, int level, u32 x, u32 y)
+                                int stride, int level)
 {
-  const std::vector<u8> data = RGBAToRGB(input, width, height, stride, x, y);
+  const std::vector<u8> data = RGBAToRGB(input, width, height, stride);
   return SavePNG(path, data.data(), ImageByteFormat::RGB, width, height, width * 3, level);
 }
 
-std::vector<u8> RGBAToRGB(const u8* input, u32 width, u32 height, int row_stride, u32 x_off,
-                          u32 y_off)
+std::vector<u8> RGBAToRGB(const u8* input, u32 width, u32 height, int row_stride)
 {
   std::vector<u8> buffer;
   buffer.reserve(width * height * 3);
 
   for (u32 y = 0; y < height; ++y)
   {
-    const u8* pos = input + (y + y_off) * row_stride;
+    const u8* pos = input + y * row_stride;
     for (u32 x = 0; x < width; ++x)
     {
-      buffer.push_back(pos[(x + x_off) * 4]);
-      buffer.push_back(pos[(x + x_off) * 4 + 1]);
-      buffer.push_back(pos[(x + x_off) * 4 + 2]);
+      buffer.push_back(pos[x * 4]);
+      buffer.push_back(pos[x * 4 + 1]);
+      buffer.push_back(pos[x * 4 + 2]);
     }
   }
   return buffer;

@@ -173,6 +173,13 @@ void GenerateVSOutputMembers(ShaderCode& object, APIType api_type, u32 texgens,
     DefineOutputMember(object, api_type, qualifier, "float3", "WorldPos", -1, "TEXCOORD",
                        texgens + 2);
   }
+  DefineOutputMember(object, api_type, qualifier, "float4", "NormalPos", -1, "TEXCOORD",
+                     texgens + 3);
+  DefineOutputMember(object, api_type, qualifier, "float4", "TangentPos", -1, "TEXCOORD",
+                     texgens + 4);
+  DefineOutputMember(object, api_type, qualifier, "float4", "BinormalPos", -1, "TEXCOORD",
+                     texgens + 5);
+  DefineOutputMember(object, api_type, qualifier, "float4", "OverrideColor", -1, "COLOR", 2);
 
   if (host_config.backend_geometry_shaders)
   {
@@ -199,6 +206,11 @@ void AssignVSOutputMembers(ShaderCode& object, std::string_view a, std::string_v
     object.Write("\t{}.Normal = {}.Normal;\n", a, b);
     object.Write("\t{}.WorldPos = {}.WorldPos;\n", a, b);
   }
+
+  object.Write("\t{}.NormalPos = {}.NormalPos;\n", a, b);
+  object.Write("\t{}.TangentPos = {}.TangentPos;\n", a, b);
+  object.Write("\t{}.BinormalPos = {}.BinormalPos;\n", a, b);
+  object.Write("\t{}.OverrideColor = {}.OverrideColor;\n", a, b);
 
   if (host_config.backend_geometry_shaders)
   {

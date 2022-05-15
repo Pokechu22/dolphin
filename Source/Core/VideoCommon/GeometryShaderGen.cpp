@@ -31,12 +31,9 @@ constexpr Common::EnumMap<u32, PrimitiveType::TriangleStrip> vertex_out_map{4u, 
 
 bool geometry_shader_uid_data::IsPassthrough() const
 {
-  /*
   const bool stereo = g_ActiveConfig.stereo_mode != StereoMode::Off;
   const bool wireframe = g_ActiveConfig.bWireFrame;
   return primitive_type >= static_cast<u32>(PrimitiveType::Triangles) && !stereo && !wireframe;
-  */
-  return false;
 }
 
 GeometryShaderUid GetGeometryShaderUid(PrimitiveType primitive_type)
@@ -69,7 +66,7 @@ ShaderCode GenerateGeometryShaderCode(APIType api_type, const ShaderHostConfig& 
   const bool stereo = host_config.stereo;
   const auto primitive_type = static_cast<PrimitiveType>(uid_data->primitive_type);
   const u32 vertex_in = vertex_in_map[primitive_type];
-  u32 vertex_out = vertex_out_map[primitive_type] * 8;
+  u32 vertex_out = vertex_out_map[primitive_type];
 
   if (wireframe)
     vertex_out++;
@@ -313,90 +310,6 @@ ShaderCode GenerateGeometryShaderCode(APIType api_type, const ShaderHostConfig& 
   out.Write("\t}}\n");
 
   EndPrimitive(out, host_config, uid_data, api_type, wireframe, stereo);
-
-  if (primitive_type != PrimitiveType::Lines)
-  {
-    out.Write("\tfor (int i = 0; i < {}; ++i) {{\n", vertex_in);
-    // TODO
-    if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
-    {
-      out.Write("\tVS_OUTPUT f;\n");
-      AssignVSOutputMembers(out, "f", "vs[i]", uid_data->numTexGens, host_config);
-
-      if (host_config.backend_depth_clamp &&
-          DriverDetails::HasBug(DriverDetails::BUG_BROKEN_CLIP_DISTANCE))
-      {
-        // On certain GPUs we have to consume the clip distance from the vertex shader
-        // or else the other vertex shader outputs will get corrupted.
-        out.Write("\tf.clipDist0 = gl_in[i].gl_ClipDistance[0];\n"
-                  "\tf.clipDist1 = gl_in[i].gl_ClipDistance[1];\n");
-      }
-    }
-    else
-    {
-      out.Write("\tVS_OUTPUT f = o[i];\n");
-    }
-
-    auto EmitLine = [&](const char* field, const char* color) {
-      out.Write("\tif (f.pos != f.{0}Pos) {{ // {0}\n", field);
-
-      out.Write("\tfloat4 new_pos = f.{}Pos;\n", field);
-
-      /*
-      out.Write("\tfloat2 to = abs(new_pos.xy / new_pos.w - f.pos.xy / f.pos.w);\n"
-                "\tfloat2 offset = 2 * normalize(float2(to.x, -to.y));\n");
-      */
-
-      // GameCube/Wii's line drawing algorithm is a little quirky. It does not
-      // use the correct line caps. Instead, the line caps are vertical or
-      // horizontal depending the slope of the line.
-      out.Write("\tfloat2 offset;\n"
-                "\tfloat2 to = abs(new_pos.xy / new_pos.w - f.pos.xy / f.pos.w);\n"
-                // FIXME: What does real hardware do when line is at a 45-degree angle?
-                // FIXME: Lines aren't drawn at the correct width. See Twilight Princess map.
-                "\tif (" I_LINEPTPARAMS ".y * to.y > " I_LINEPTPARAMS ".x * to.x) {{\n"
-                // Line is more tall. Extend geometry left and right.
-                // Lerp LineWidth/2 from [0..VpWidth] to [-1..1]
-                "\t\toffset = float2(1 / " I_LINEPTPARAMS ".x, 0);\n"
-                "\t}} else {{\n"
-                // Line is more wide. Extend geometry up and down.
-                // Lerp LineWidth/2 from [0..VpHeight] to [1..-1]
-                "\t\toffset = float2(0, 1 / " I_LINEPTPARAMS ".y);\n"
-                "\t}}\n");
-
-      out.Write("\tVS_OUTPUT ll = f;\n"
-                "\tll.OverrideColor = {};\n"
-                "\tVS_OUTPUT lr = ll;\n"
-                "\tVS_OUTPUT ul = ll;\n"
-                "\tul.pos = new_pos;\n"
-                "\tVS_OUTPUT ur = ul;\n",
-                color);
-
-      out.Write("\tll.pos.xy -= offset * ll.pos.w;\n"
-                "\tlr.pos.xy += offset * lr.pos.w;\n"
-                "\tul.pos.xy -= offset * ul.pos.w;\n"
-                "\tur.pos.xy += offset * ur.pos.w;\n");
-
-      EmitVertex(out, host_config, uid_data, "ll", api_type, wireframe, stereo, true);
-      EmitVertex(out, host_config, uid_data, "lr", api_type, wireframe, stereo);
-      EmitVertex(out, host_config, uid_data, "ul", api_type, wireframe, stereo);
-      EmitVertex(out, host_config, uid_data, "ur", api_type, wireframe, stereo);
-      EndPrimitive(out, host_config, uid_data, api_type, wireframe, stereo);
-
-      EmitVertex(out, host_config, uid_data, "lr", api_type, wireframe, stereo, true);
-      EmitVertex(out, host_config, uid_data, "ll", api_type, wireframe, stereo);
-      EmitVertex(out, host_config, uid_data, "ur", api_type, wireframe, stereo);
-      EmitVertex(out, host_config, uid_data, "ul", api_type, wireframe, stereo);
-      EndPrimitive(out, host_config, uid_data, api_type, wireframe, stereo);
-
-      out.Write("\t}}\n");
-    };
-
-    EmitLine("Normal", "float4(1, 0, 0, 1)");
-    // EmitLine("Tangent", "float4(0, 0, 1, 1)");
-    // EmitLine("Binormal", "float4(0, 1, 0, 1)");
-    out.Write("\t}}\n");
-  }
 
   if (stereo && !host_config.backend_gs_instancing)
     out.Write("\t}}\n");

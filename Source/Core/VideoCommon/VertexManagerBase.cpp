@@ -606,10 +606,7 @@ void VertexManagerBase::CalculateBinormals(NativeVertexFormat* format)
   if (vert_decl.normals[1].enable)
     return;
 
-  VertexLoaderManager::tangent_cache = {0, 0, 0, 0};
-  VertexLoaderManager::binormal_cache = {0, 0, 0, 0};
-
-  /* VertexLoaderManager::tangent_cache[3] = 0;
+  VertexLoaderManager::tangent_cache[3] = 0;
   VertexLoaderManager::binormal_cache[3] = 0;
 
   if (VertexShaderManager::constants.cached_tangent != VertexLoaderManager::tangent_cache)
@@ -621,7 +618,7 @@ void VertexManagerBase::CalculateBinormals(NativeVertexFormat* format)
   {
     VertexShaderManager::constants.cached_binormal = VertexLoaderManager::binormal_cache;
     VertexShaderManager::dirty = true;
-  }*/
+  }
 }
 
 void VertexManagerBase::UpdatePipelineConfig()

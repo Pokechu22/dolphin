@@ -160,14 +160,6 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
         out.Write("VARYING_LOCATION({}) {} out float3 WorldPos;\n", counter++,
                   GetInterpolationQualifier(msaa, ssaa));
       }
-      out.Write("VARYING_LOCATION({}) {} out float4 NormalPos;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float4 TangentPos;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float4 BinormalPos;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
-      out.Write("VARYING_LOCATION({}) {} out float4 OverrideColor;\n", counter++,
-                GetInterpolationQualifier(msaa, ssaa));
     }
 
     out.Write("void main()\n{{\n");
@@ -280,56 +272,13 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
   }
   else
   {
-    out.Write("float3 rawnormal = float3(0.0, 0.0, 0.0);\n");
-    out.Write("float3 rawtangent = float3(0.0, 0.0, 0.0);\n");
-    out.Write("float3 rawbinormal = float3(0.0, 0.0, 0.0);\n");
     out.Write("float3 _normal = float3(0.0, 0.0, 0.0);\n");
-    out.Write("float3 _tangent = float3(0.0, 0.0, 0.0);\n");
     out.Write("float3 _binormal = float3(0.0, 0.0, 0.0);\n");
+    out.Write("float3 _tangent = float3(0.0, 0.0, 0.0);\n");
   }
 
   out.Write("o.pos = float4(dot(" I_PROJECTION "[0], pos), dot(" I_PROJECTION
             "[1], pos), dot(" I_PROJECTION "[2], pos), dot(" I_PROJECTION "[3], pos));\n");
-
-  out.Write("float4 rawnormalpos = rawpos;\n"
-            "if (rawnormal != float3(0.0, 0.0, 0.0))\n"
-            "  rawnormalpos += normalize(float4(rawnormal, 0.0));\n"
-            "float4 rawtangentpos = rawpos;\n"
-            "if (rawtangent != float3(0.0, 0.0, 0.0))\n"
-            "  rawtangentpos += normalize(float4(rawtangent, 0.0));\n"
-            "float4 rawbinormalpos = rawpos;"
-            "if (rawbinormal != float3(0.0, 0.0, 0.0))\n"
-            "  rawbinormalpos += normalize(float4(rawbinormal, 0.0));\n");
-  out.Write("float4 normalpos = float4(dot(P0, rawnormalpos), "
-            "dot(P1, rawnormalpos), dot(P2, rawnormalpos), 1.0);\n");
-  out.Write("float4 tangentpos = float4(dot(P0, rawtangentpos), "
-            "dot(P1, rawtangentpos), dot(P2, rawtangentpos), 1.0);\n");
-  out.Write("float4 binormalpos = float4(dot(P0, rawbinormalpos), "
-            "dot(P1, rawbinormalpos), dot(P2, rawbinormalpos), 1.0);\n");
-
-  out.Write("o.NormalPos = float4(dot(" I_PROJECTION "[0], normalpos), dot(" I_PROJECTION
-            "[1], normalpos), dot(" I_PROJECTION "[2], normalpos), dot(" I_PROJECTION
-            "[3], normalpos));\n");
-  out.Write("o.TangentPos = float4(dot(" I_PROJECTION "[0], tangentpos), dot(" I_PROJECTION
-            "[1], tangentpos), dot(" I_PROJECTION "[2], tangentpos), dot(" I_PROJECTION
-            "[3], tangentpos));\n");
-  out.Write("o.BinormalPos = float4(dot(" I_PROJECTION "[0], binormalpos), dot(" I_PROJECTION
-            "[1], binormalpos), dot(" I_PROJECTION "[2], binormalpos), dot(" I_PROJECTION
-            "[3], binormalpos));\n");
-  out.Write("o.NormalPos.z = o.pos.w * " I_PIXELCENTERCORRECTION ".w - "
-            "o.NormalPos.z * " I_PIXELCENTERCORRECTION ".z;\n"
-            "o.NormalPos.xy *= sign(" I_PIXELCENTERCORRECTION ".xy * float2(1.0, -1.0));\n"
-            "o.NormalPos.xy = o.NormalPos.xy - o.NormalPos.w * " I_PIXELCENTERCORRECTION ".xy;\n");
-  out.Write("o.TangentPos.z = o.pos.w * " I_PIXELCENTERCORRECTION ".w - "
-            "o.TangentPos.z * " I_PIXELCENTERCORRECTION ".z;\n"
-            "o.TangentPos.xy *= sign(" I_PIXELCENTERCORRECTION ".xy * float2(1.0, -1.0));\n"
-            "o.TangentPos.xy = o.TangentPos.xy - o.TangentPos.w * " I_PIXELCENTERCORRECTION
-            ".xy;\n");
-  out.Write("o.BinormalPos.z = o.pos.w * " I_PIXELCENTERCORRECTION ".w - "
-            "o.BinormalPos.z * " I_PIXELCENTERCORRECTION ".z;\n"
-            "o.BinormalPos.xy *= sign(" I_PIXELCENTERCORRECTION ".xy * float2(1.0, -1.0));\n"
-            "o.BinormalPos.xy = o.BinormalPos.xy - o.BinormalPos.w * " I_PIXELCENTERCORRECTION
-            ".xy;\n");
 
   out.Write("int4 lacc;\n"
             "float3 ldir, h, cosAttn, distAttn;\n"
@@ -598,7 +547,7 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
               "\to.pos.y = ((ss_pixel_y / (" I_VIEWPORT_SIZE ".y * 0.5f)) - 1.0f);\n"
               "}}\n");
   }
-  out.Write("\to.OverrideColor = float4(0.0, 0.0, 0.0, 0.0);\n");
+
   if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
   {
     if (host_config.backend_geometry_shaders)

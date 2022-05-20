@@ -628,4 +628,13 @@ void Prepare()
   s_event_sync_gpu = CoreTiming::RegisterEvent("SyncGPUCallback", SyncGPUCallback);
   s_syncing_suspended = true;
 }
+
+u8* GetReadPtr()
+{
+  return s_video_buffer_read_ptr;
+}
+u8* GetWritePtr()
+{
+  return s_video_buffer_write_ptr.load(std::memory_order_relaxed);
+}
 }  // namespace Fifo

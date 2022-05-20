@@ -4,6 +4,7 @@
 #pragma once
 
 #include <atomic>
+#include <string_view>
 
 #include "Common/CommonTypes.h"
 
@@ -172,4 +173,5 @@ void HandleUnknownOpcode(u8 cmd_byte, const u8* buffer, bool preprocess);
 
 u32 GetPhysicalAddressMask();
 
+void DumpFifo(std::string_view context);
 }  // namespace CommandProcessor

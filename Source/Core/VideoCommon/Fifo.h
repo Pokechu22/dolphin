@@ -48,4 +48,7 @@ void EmulatorState(bool running);
 bool AtBreakpoint();
 void ResetVideoBuffer();
 
+// Only for testing
+u8* GetReadPtr();
+u8* GetWritePtr();
 }  // namespace Fifo

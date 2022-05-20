@@ -44,6 +44,36 @@ static Common::Flag s_interrupt_waiting;
 
 static bool s_is_fifo_error_seen = false;
 
+void DumpFifo(std::string_view context)
+{
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Dumping fifo information: {}", context);
+  const u8* const read_ptr = Fifo::GetReadPtr();
+  const u32 read_ptr_addr = fifo.CPReadPointer.load(std::memory_order_relaxed);
+  const u8* const write_ptr = Fifo::GetWritePtr();
+  const u32 write_ptr_addr = fifo.CPWritePointer.load(std::memory_order_relaxed);
+  const u32 dist = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Read pointer: {:08x} / {}", read_ptr_addr, fmt::ptr(read_ptr));
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Write pointer: {:08x} / {}", write_ptr_addr, fmt::ptr(write_ptr));
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Distance: {:x} / {:x} / {:x}", dist,
+               write_ptr_addr - read_ptr_addr, write_ptr - read_ptr);
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Buffer: {:02x}",
+               fmt::join(read_ptr, std::min(read_ptr + 0x100, write_ptr), " "));
+  WARN_LOG_FMT(COMMANDPROCESSOR, "PC: {:08x}, LR: {:08x}", PC, LR);
+  WARN_LOG_FMT(COMMANDPROCESSOR, "Control: GPREAD {} | BP {} | Int {} | OvF {} | UndF {} | LINK {}",
+               fifo.bFF_GPReadEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
+               fifo.bFF_BPEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
+               fifo.bFF_BPInt.load(std::memory_order_relaxed) ? "ON" : "OFF",
+               m_CPCtrlReg.FifoOverflowIntEnable ? "ON" : "OFF",
+               m_CPCtrlReg.FifoUnderflowIntEnable ? "ON" : "OFF",
+               m_CPCtrlReg.GPLinkEnable ? "ON" : "OFF");
+}
+
+static inline void WriteLow(std::atomic<u32>& reg, u16 lowbits)
+{
+  reg.store((reg.load(std::memory_order_relaxed) & 0xFFFF0000) | lowbits,
+            std::memory_order_relaxed);
+}
+
 static bool IsOnThread()
 {
   return Core::System::GetInstance().IsDualCoreMode();
@@ -195,14 +225,29 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
       {FIFO_LO_WATERMARK_HI, MMIO::Utils::HighPart(&fifo.CPLoWatermark), false, WMASK_HI_RESTRICT},
       // FIFO_RW_DISTANCE has some complex read code different for
       // single/dual core.
+      /*
       {FIFO_WRITE_POINTER_LO, MMIO::Utils::LowPart(&fifo.CPWritePointer), false,
        WMASK_LO_ALIGN_32BIT},
       {FIFO_WRITE_POINTER_HI, MMIO::Utils::HighPart(&fifo.CPWritePointer), false,
        WMASK_HI_RESTRICT},
+       */
       // FIFO_READ_POINTER has different code for single/dual core.
       {FIFO_BP_LO, MMIO::Utils::LowPart(&fifo.CPBreakpoint), false, WMASK_LO_ALIGN_32BIT},
       {FIFO_BP_HI, MMIO::Utils::HighPart(&fifo.CPBreakpoint), false, WMASK_HI_RESTRICT},
   };
+
+  mmio->Register(base | FIFO_WRITE_POINTER_LO,
+                 MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&fifo.CPWritePointer)),
+                 MMIO::ComplexWrite<u16>([](u32, u16 val) {
+                   DumpFifo(fmt::format("Write {:04x} to WRITE_POINTER_LO", val));
+                   WriteLow(fifo.CPWritePointer, val & WMASK_LO_ALIGN_32BIT);
+                 }));
+  mmio->Register(base | FIFO_WRITE_POINTER_HI,
+                 MMIO::DirectRead<u16>(MMIO::Utils::HighPart(&fifo.CPWritePointer)),
+                 MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](u32, u16 val) {
+                   DumpFifo(fmt::format("Write {:04x} to WRITE_POINTER_HI", val));
+                   WriteHigh(fifo.CPWritePointer, val & WMASK_HI_RESTRICT);
+                 }));
 
   for (auto& mapped_var : directly_mapped_vars)
   {
@@ -283,8 +328,10 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
         }
       }) :
                      MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&fifo.CPReadWriteDistance)),
-      MMIO::DirectWrite<u16>(MMIO::Utils::LowPart(&fifo.CPReadWriteDistance),
-                             WMASK_LO_ALIGN_32BIT));
+      MMIO::ComplexWrite<u16>([](u32, u16 val) {
+        DumpFifo(fmt::format("Write {:04x} to RW_DISTANCE_LO", val));
+        WriteLow(fifo.CPReadWriteDistance, val & WMASK_LO_ALIGN_32BIT);
+      }));
   mmio->Register(base | FIFO_RW_DISTANCE_HI,
                  IsOnThread() ?
                      MMIO::ComplexRead<u16>([](u32) {
@@ -310,15 +357,19 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                        return fifo.CPReadWriteDistance.load(std::memory_order_relaxed) >> 16;
                      }),
                  MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](u32, u16 val) {
+                   DumpFifo(fmt::format("Write {:04x} to RW_DISTANCE_HI", val));
                    Fifo::SyncGPUForRegisterAccess();
                    WriteHigh(fifo.CPReadWriteDistance, val & WMASK_HI_RESTRICT);
                    Fifo::RunGpu();
                  }));
-  mmio->Register(
-      base | FIFO_READ_POINTER_LO,
-      IsOnThread() ? MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&fifo.SafeCPReadPointer)) :
+  mmio->Register(base | FIFO_READ_POINTER_LO,
+                 IsOnThread() ?
+                     MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&fifo.SafeCPReadPointer)) :
                      MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&fifo.CPReadPointer)),
-      MMIO::DirectWrite<u16>(MMIO::Utils::LowPart(&fifo.CPReadPointer), WMASK_LO_ALIGN_32BIT));
+                 MMIO::ComplexWrite<u16>([](u32, u16 val) {
+                   DumpFifo(fmt::format("Write {:04x} to READ_POINTER_LO", val));
+                   WriteLow(fifo.CPReadPointer, val & WMASK_LO_ALIGN_32BIT);
+                 }));
   mmio->Register(base | FIFO_READ_POINTER_HI,
                  IsOnThread() ? MMIO::ComplexRead<u16>([](u32) {
                    Fifo::SyncGPUForRegisterAccess();
@@ -335,6 +386,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                                                 std::memory_order_relaxed);
                  }) :
                                 MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](u32, u16 val) {
+                                  DumpFifo(fmt::format("Write {:04x} to READ_POINTER_HI", val));
                                   Fifo::SyncGPUForRegisterAccess();
                                   WriteHigh(fifo.CPReadPointer, val & WMASK_HI_RESTRICT);
                                 }));
@@ -586,6 +638,7 @@ void SetCpControlRegister()
     fifo.bFF_GPReadEnable = m_CPCtrlReg.GPReadEnable;
   }
 
+  DumpFifo("CP control reg");
   DEBUG_LOG_FMT(COMMANDPROCESSOR, "\t GPREAD {} | BP {} | Int {} | OvF {} | UndF {} | LINK {}",
                 fifo.bFF_GPReadEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
                 fifo.bFF_BPEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
@@ -649,6 +702,7 @@ void HandleUnknownOpcode(u8 cmd_byte, const u8* buffer, bool preprocess)
       fifo.bFF_GPLinkEnable.load(std::memory_order_relaxed) ? "true" : "false",
       fifo.bFF_HiWatermarkInt.load(std::memory_order_relaxed) ? "true" : "false",
       fifo.bFF_LoWatermarkInt.load(std::memory_order_relaxed) ? "true" : "false", PC, LR);
+  DumpFifo("Unknown opcode");
 
   if (!s_is_fifo_error_seen && !suppress_panic_alert)
   {

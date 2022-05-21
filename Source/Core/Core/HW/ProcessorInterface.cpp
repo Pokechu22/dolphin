@@ -10,8 +10,10 @@
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
+#include "Core/Boot/Boot.h"
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
+#include "Core/HW/CPU.h"
 #include "Core/HW/DVD/DVDInterface.h"
 #include "Core/HW/MMIO.h"
 #include "Core/HW/SystemTimers.h"
@@ -131,10 +133,32 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                  }),
                  MMIO::ComplexWrite<u32>([](u32, u32 val) {
                    m_ResetCode = val;
-                   INFO_LOG_FMT(PROCESSORINTERFACE, "Wrote PI_RESET_CODE: {:08x}", m_ResetCode);
-                   if (!SConfig::GetInstance().bWii && ~m_ResetCode & 0x4)
+                   if (SConfig::GetInstance().bWii)
                    {
-                     DVDInterface::ResetDrive(true);
+                     WARN_LOG_FMT(PROCESSORINTERFACE,
+                                  "PI_RESET_CODE is not handled in Wii mode; wrote {:08x}",
+                                  m_ResetCode);
+                   }
+                   else
+                   {
+                     INFO_LOG_FMT(PROCESSORINTERFACE, "Wrote PI_RESET_CODE: {:08x}", m_ResetCode);
+                     if (~m_ResetCode & 0x1)
+                     {
+                       // System reset
+                       // TODO: This doesn't work.  How can I make something that works?
+                       CBoot::BootUp(std::make_unique<BootParameters>(
+                           BootParameters::IPL{SConfig::GetInstance().m_region}));
+                     }
+                     if (~m_ResetCode & 0x2)
+                     {
+                       // 1T-SRAM reset; note that the function that clears this loads itself fully
+                       // into icache first
+                       // TODO: What does this entail?
+                     }
+                     if (~m_ResetCode & 0x4)
+                     {
+                       DVDInterface::ResetDrive(true);
+                     }
                    }
                  }));
 

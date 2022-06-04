@@ -116,12 +116,12 @@ void GBAUCode::HandleMail(u32 mail)
   }
   else if ((mail >> 16 == 0xcdd1) && calc_done)
   {
-    switch (mail & 0xffff)
+    switch (mail)
     {
-    case 1:
+    case MAIL_NEW_UCODE:
       m_upload_setup_in_progress = true;
       break;
-    case 2:
+    case MAIL_RESET:
       m_dsphle->SetUCode(UCODE_ROM);
       break;
     default:

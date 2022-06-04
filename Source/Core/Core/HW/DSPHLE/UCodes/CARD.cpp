@@ -60,13 +60,13 @@ void CARDUCode::HandleMail(u32 mail)
   }
   else if ((mail >> 16 == 0xcdd1) && calc_done)
   {
-    switch (mail & 0xffff)
+    switch (mail)
     {
-    case 1:
+    case MAIL_NEW_UCODE:
       INFO_LOG_FMT(DSPHLE, "CARDUCode - Setting up new ucode");
       m_upload_setup_in_progress = true;
       break;
-    case 2:
+    case MAIL_RESET:
       INFO_LOG_FMT(DSPHLE, "CARDUCode - Switching to ROM ucode");
       m_dsphle->SetUCode(UCODE_ROM);
       break;

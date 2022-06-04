@@ -8,6 +8,7 @@
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
+#include "Core/DSP/DSPAccelerator.h"
 #include "Core/HW/DSP.h"
 #include "Core/HW/DSPHLE/DSPHLE.h"
 #include "Core/HW/DSPHLE/UCodes/UCodes.h"
@@ -81,24 +82,6 @@ void CARDUCode::Initialize()
 // I think a length of 0 or 1 just isn't handled correctly, but any length >= 2, odd or even, works
 // (of course, I've only tested 2, 3, or 8).
 
-void CARDUCode::CardUcodeWorkData::WriteAccelerator(u16 value)
-{
-  WriteARAM(accelerator * 2, value >> 8);
-  WriteARAM(accelerator * 2 + 1, value & 0xFF);
-  accelerator++;
-}
-
-u16 CARDUCode::CardUcodeWorkData::ReadAccelerator()
-{
-  u8 val = ReadARAM(accelerator / 2);
-  if (accelerator & 1)
-    val &= 0xf;
-  else
-    val >>= 4;
-  accelerator++;
-  return val;
-}
-
 static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
 {
   // DMA happens in function called from 0034 - 003b; DMA function is at 0094 - 00a1
@@ -111,6 +94,24 @@ static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
 
   return params;
 }
+
+namespace
+{
+class HLEAccelerator final : public Accelerator
+{
+protected:
+  void OnEndException() override
+  {
+    PanicAlertFmt("CARD uCode shouldn't have the accelerator end!");
+  }
+
+  u8 ReadMemory(u32 address) override { return ReadARAM(address); }
+  void WriteMemory(u32 address, u8 value) override { WriteARAM(value, address); }
+};
+
+// TODO: Doing this is jank (and AXVoice.h does a similar thing).
+static std::unique_ptr<Accelerator> s_accelerator = std::make_unique<HLEAccelerator>();
+}  // namespace
 
 static void ProcessParameters(CARDUCode::CardUcodeParameters params)
 {
@@ -129,21 +130,24 @@ static void ProcessParameters(CARDUCode::CardUcodeParameters params)
   ASSERT(params.input_size >= 2);
 
   // 865a - 8669 - Set up the accelerator
-  // Format is 0 (unknown)
-  // Start is ARAM 0x0000'0000, and end is ARAM 0x01ff'ffff - we don't need to worry about this
-  // as it means there is no wrapping.  The actual address to use comes from params.
-  data.accelerator = params.aram_work_addr;
+  s_accelerator->SetSampleFormat(0);
+  s_accelerator->SetStartAddress(0);
+  // Since there are 0x0100'0000 bytes of ARAM, and it gets mirrored every 0x0400'0000 bytes
+  // (mask 0x03ff'ffff) according to DSP.cpp, this indicates that format 0 writes u16, probably.
+  s_accelerator->SetEndAddress(0x01ff'ffff);
+  s_accelerator->SetCurrentAddress(params.aram_work_addr);
 
-  // Copy from dmem to the accelerator.
+  // 866a - 8684 - Copy from dmem to the accelerator and also sum the bytes
 
-  // Set up the accelerator again
-  // Format is 0 (unknown)
-  // Start is ARAM 0x0000'0000, and end is ARAM 0x07ff'ffff - we don't need to worry about this
-  // as it means there is no wrapping.  The actual address to use comes from params again.
-  // Note that the end is 0x07ff'ffff this time - 4 times larger.
-  // This is still odd as there's only 0x0100'0000 bytes of ARAM, and it gets mirrored every
-  // 0x0400'0000 bytes (mask 0x03ff'ffff) - the first mask is half that (so u16), and this mask
-  // is twice that (so nybbles?)
+  // s_accelerator->WriteD3();
+
+  // 86a4 - 86b1 - Set up the accelerator again
+  s_accelerator->SetSampleFormat(0);
+  s_accelerator->SetStartAddress(0);
+  // Since there are 0x0100'0000 bytes of ARAM, and it gets mirrored every 0x0400'0000 bytes
+  // (mask 0x03ff'ffff) according to DSP.cpp, this indicates that format 0 reads nybbles, probably.
+  s_accelerator->SetEndAddress(0x07ff'ffff);
+  s_accelerator->SetCurrentAddress(params.aram_work_addr);
 }
 
 void CARDUCode::Update()

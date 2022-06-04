@@ -37,16 +37,35 @@ void CARDUCode::Update()
 
 void CARDUCode::HandleMail(u32 mail)
 {
-  if (mail == 0xFF000000)  // unlock card
+  static bool next_is_addr = false;
+  if (next_is_addr)
   {
-    //	m_Mails.push(0x00000001); // ACK (actually anything != 0)
+    next_is_addr = false;
+    INFO_LOG_FMT(DSPHLE, "CARDUCode - addr: {:x} => {:x}", mail, mail & 0x0fff'ffff);
+    m_mail_handler.PushMail(DSP_DONE);
+  }
+  else if (m_upload_setup_in_progress)
+  {
+    PrepareBootUCode(mail);
+  }
+  else if (mail == 0xFF00'0000)  // unlock card
+  {
+    INFO_LOG_FMT(DSPHLE, "CARDUCode - Unlock");
+    next_is_addr = true;
+  }
+  else if (mail == 0xCDD10001)
+  {
+    INFO_LOG_FMT(DSPHLE, "CARDUCode - Setting up new ucode");
+    m_upload_setup_in_progress = true;
+  }
+  else if (mail == 0xCDD10002)
+  {
+    INFO_LOG_FMT(DSPHLE, "CARDUCode - Switching to ROM ucode");
+    m_dsphle->SetUCode(UCODE_ROM);
   }
   else
   {
     WARN_LOG_FMT(DSPHLE, "CARDUCode - unknown command: {:x}", mail);
   }
-
-  m_mail_handler.PushMail(DSP_DONE);
-  m_dsphle->SetUCode(UCODE_ROM);
 }
 }  // namespace DSP::HLE

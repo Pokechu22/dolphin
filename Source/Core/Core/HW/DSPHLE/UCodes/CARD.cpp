@@ -3,6 +3,8 @@
 
 #include "Core/HW/DSPHLE/UCodes/CARD.h"
 
+#include <vector>
+
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
@@ -74,6 +76,53 @@ void CARDUCode::Initialize()
 // Alright, I don't think I understand how length is supposed to work, or we're doing something
 // wrong in DSP LLE. Oh well. Let's just stick with the length of 8 for now...
 
+void CARDUCode::CardUcodeWorkData::WriteAccelerator(u16 value)
+{
+  HLEMemory_Write_U8(0x10000000 | accelerator++, static_cast<u8>(value));
+  accelerator++;
+}
+
+u16 CARDUCode::CardUcodeWorkData::ReadAccelerator()
+{
+  return HLEMemory_Read_U8(0x10000000 | accelerator++);
+}
+
+static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
+{
+  // DMA happens in function called from 0034 - 003b; DMA function is at 0094 - 00a1
+  CARDUCode::CardUcodeParameters params;
+  params.mram_input_addr = HLEMemory_Read_U32(address);
+  params.unused = HLEMemory_Read_U16(address + 4);
+  params.input_size = HLEMemory_Read_U16(address + 6);
+  params.aram_work_addr = HLEMemory_Read_U32(address + 8);
+  params.mram_output_addr = HLEMemory_Read_U32(address + 12);
+
+  return params;
+}
+
+static void ProcessParameters(CARDUCode::CardUcodeParameters params)
+{
+  // Large ROM function from 8644 to 86e4
+  CARDUCode::CardUcodeWorkData data{};
+
+  // 8649 - 864d - round up size to the next multiple of 4 bytes
+  const u16 modified_size = (params.input_size + 3) & ~3;
+  // 864e - 8658 - DMA the input data to 0800 in DRAM
+  // (We just use our own buffer instead of dealing with DRAM)
+  std::vector<u8> buffer;
+  buffer.reserve(modified_size);
+  const u8* const input_data = static_cast<u8*>(HLEMemory_Get_Pointer(params.mram_input_addr));
+  std::copy(input_data, input_data + modified_size, std::back_inserter(buffer));
+
+  // 865a - 8669 - Set up the accelerator
+  // Format is 0 (unknown)
+  // Start is ARAM 0x0000'0000, and end is ARAM 0x01ff'ffff - we don't need to worry about this
+  // as it means there is no wrapping.  The actual address to use comes from params.
+  data.accelerator = params.aram_work_addr;
+
+  // 
+}
+
 void CARDUCode::Update()
 {
   // check if we have something to send
@@ -116,16 +165,9 @@ void CARDUCode::HandleMail(u32 mail)
     // Waiting, reading the address, and masking happens at 002e - 0032
     const u32 address = mail & 0x0fff'ffff;
 
-    // DMA happens in function called from 0034 - 003b; function is at 0094 - 00a1
-    CardUcodeParameters params;
-    params.mram_input_addr = HLEMemory_Read_U32(address);
-    params.unused = HLEMemory_Read_U16(address + 4);
-    params.input_size = HLEMemory_Read_U16(address + 6);
-    params.aram_work_addr = HLEMemory_Read_U32(address + 8);
-    params.mram_output_addr = HLEMemory_Read_U32(address + 12);
-
     INFO_LOG_FMT(DSPHLE, "CARDUCode - Reading input parameters from address {:08x} ({:08x})",
                  address, mail);
+    CardUcodeParameters params = ReadParameters(address);
     INFO_LOG_FMT(DSPHLE, "Input MRAM address: {:08x}", params.mram_input_addr);
     INFO_LOG_FMT(DSPHLE, "Unused: {:04x}", params.unused);
     INFO_LOG_FMT(DSPHLE, "Input size: {:04x}", params.input_size);
@@ -133,7 +175,7 @@ void CARDUCode::HandleMail(u32 mail)
     INFO_LOG_FMT(DSPHLE, "Output MRAM address: {:08x}", params.mram_output_addr);
 
     // Call at 003d into ROM code
-    // TODO
+    ProcessParameters(params);
 
     // 003f - 0045: send a response.
     m_mail_handler.PushMail(DSP_DONE);

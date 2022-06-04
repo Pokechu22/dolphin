@@ -17,7 +17,15 @@ u16 Accelerator::ReadD3()
 
   switch (m_sample_format)
   {
-  case 0x0:
+  case 0x0:  // nybble reads?
+    val = ReadMemory(m_current_address / 2);
+    if (m_current_address & 1)
+      val &= 0xf;
+    else
+      val >>= 4;
+    INFO_LOG_FMT(DSPLLE, "Read {:01x} from {:08x}", val, m_current_address);
+    m_current_address++;
+    break;
   case 0x5:  // u8 reads
     val = ReadMemory(m_current_address);
     m_current_address++;
@@ -48,8 +56,10 @@ void Accelerator::WriteD3(u16 value)
 
   switch (m_sample_format)
   {
-  case 0x0:  // u8 writes
-    WriteMemory(m_current_address, value & 0xFF);
+  case 0x0:  // unknown, maybe u16?
+    WriteMemory(m_current_address * 2, value >> 8);
+    WriteMemory(m_current_address * 2 + 1, value & 0xFF);
+    INFO_LOG_FMT(DSPLLE, "Write {:04x} to {:08x}", value, m_current_address);
     m_current_address++;
     break;
   case 0xA:  // u16 writes

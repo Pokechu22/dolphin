@@ -17,6 +17,7 @@ u16 Accelerator::ReadD3()
 
   switch (m_sample_format)
   {
+  case 0x0:
   case 0x5:  // u8 reads
     val = ReadMemory(m_current_address);
     m_current_address++;
@@ -47,6 +48,10 @@ void Accelerator::WriteD3(u16 value)
 
   switch (m_sample_format)
   {
+  case 0x0:  // u8 writes
+    WriteMemory(m_current_address, value & 0xFF);
+    m_current_address++;
+    break;
   case 0xA:  // u16 writes
     WriteMemory(m_current_address * 2, value >> 8);
     WriteMemory(m_current_address * 2 + 1, value & 0xFF);

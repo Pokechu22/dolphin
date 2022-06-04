@@ -24,6 +24,23 @@ void CARDUCode::Initialize()
   m_state = State::WaitingForRequest;
 }
 
+// In Super Mario Sunshine, the relevant functions are card::__CARDUnlock (8035593c) and
+// card::DoneCallback (80356504).  The input parameters are at 80747300 (I think this is dynamically
+// allocated, but it seems to be consistent); the input address is 80747320, the unused value is 0,
+// the input size is 8, the ARAM address is 00000000, and the output address is 80747340.
+// The input data is populated by __CARDUnlock (at 803563e0) and the output is read by DoneCallback
+// (at 80356564).  Setting a breakpoint at 803563f0 allows us to change the input data, which
+// otherwise seems to be completely random.  Here are a few inputs and outputs from DSP LLE:
+//
+// 0000000000000000 -> 6348b619
+// 0000000000000001 -> 9f31c537
+// 0000000100000000 -> 8fb395d5
+// ffffffffffffffff -> 56bd4b37
+// 0123456789abcdef -> c7d0a17d
+// fedcba9876543210 -> a115cacc
+// 7c77a5c935f29b44 -> 6ac69ca5
+// 017ca2808a158490 -> df3fbcda
+
 void CARDUCode::Update()
 {
   // check if we have something to send

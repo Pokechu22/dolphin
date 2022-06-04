@@ -124,7 +124,16 @@ static void ProcessParameters(CARDUCode::CardUcodeParameters params)
   // as it means there is no wrapping.  The actual address to use comes from params.
   data.accelerator = params.aram_work_addr;
 
-  // 
+  // stuff happens
+
+  // Set up the accelerator again
+  // Format is 0 (unknown)
+  // Start is ARAM 0x0000'0000, and end is ARAM 0x07ff'ffff - we don't need to worry about this
+  // as it means there is no wrapping.  The actual address to use comes from params again.
+  // Note that the end is 0x07ff'ffff this time - 4 times larger.
+  // This is still odd as there's only 0x0100'0000 bytes of ARAM, and it gets mirrored every
+  // 0x0400'0000 bytes (mask 0x03ff'ffff) - the first mask is half that (so u16), and this mask
+  // is twice that (so nybbles?)
 }
 
 void CARDUCode::Update()

@@ -48,37 +48,37 @@ void CARDUCode::Initialize()
 // (at 80356564).  Setting a breakpoint at 803563f0 allows us to change the input data, which
 // otherwise seems to be completely random.  Here are a few inputs and outputs from DSP LLE:
 //
-// 0000000000000000 -> 6348b619
-// 0000000000000001 -> 9f31c537
-// 0000000100000000 -> 8fb395d5
-// ffffffffffffffff -> 56bd4b37
-// 0123456789abcdef -> c7d0a17d
-// fedcba9876543210 -> a115cacc
-// 7c77a5c935f29b44 -> 6ac69ca5
-// 017ca2808a158490 -> df3fbcda
+// 0000000000000000 -> 24349566
+// 0000000000000001 -> aee1a9cc
+// 0000000100000000 -> c7697175
+// ffffffffffffffff -> c09ac28b
+// 0123456789abcdef -> 9b5fe1fb
+// fedcba9876543210 -> 6ba14ac4
+// 7c77a5c935f29b44 -> 2b3f37c9
+// 017ca2808a158490 -> 770bd350
 //
 // card::InitCallback (80356494) is responsible for sending the data.  A breakpoint there also works
 // and allows changing the input parameters.
 //
-// 0000000000000000 with length 0 -> 0bb149da
-// 0000000000000001 with length 0 -> 0bb149da
-// ffffffff with length 0 -> 0bb149da
+// 0000000000000000 with length 0 -> 9c843834
+// 0000000000000001 with length 0 -> 9c843834
+// ffffffff with length 0 -> 9c843834
 // 00000000 with length 1 -> 05efe0aa
 // 00123456 with length 1 -> 05efe0aa
 // 00ffffff with length 1 -> 05efe0aa
 // 01000000 with length 1 -> 05efe0aa (huh)
 // ff000000 with length 1 -> 05efe0aa ... ok.
-// 00000000 with length 2 -> 8ad40b9d
-// 0000ffff with length 2 -> 8ad40b9d
-// 00010000 with length 2 -> 88a1f623
-// 0001ffff with length 2 -> 88a1f623
-// 0100ffff with length 2 -> c8a1f623 - this is different.
-// 00000000 with length 3 -> bec4e592
-// 000000ff with length 3 -> 9e454691
-// 0000ff00 with length 3 -> 3900145c
+// 00000000 with length 2 -> bb540b1d
+// 0000ffff with length 2 -> bb540b1d
+// 00010000 with length 2 -> e4e1f5e3
+// 0001ffff with length 2 -> e4e1f5e3
+// 0100ffff with length 2 -> e121f5e3 - this is different.
+// 00000000 with length 3 -> c2c4e55a
+// 000000ff with length 3 -> c2c4e55a
+// 0000ff00 with length 3 -> 390013f4
 //
-// Alright, I don't think I understand how length is supposed to work, or we're doing something
-// wrong in DSP LLE. Oh well. Let's just stick with the length of 8 for now...
+// I think a length of 0 or 1 just isn't handled correctly, but any length >= 2, odd or even, works
+// (of course, I've only tested 2, 3, or 8).
 
 void CARDUCode::CardUcodeWorkData::WriteAccelerator(u16 value)
 {

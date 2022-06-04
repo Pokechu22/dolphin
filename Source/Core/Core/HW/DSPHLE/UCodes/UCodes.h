@@ -69,6 +69,11 @@ protected:
     DSP_DONE = 0xDCD10003,
     DSP_SYNC = 0xDCD10004,
     DSP_FRAME_END = 0xDCD10005,
+
+    MAIL_RESUME = 0xCDD10000,
+    MAIL_NEW_UCODE = 0xCDD10001,
+    MAIL_RESET = 0xCDD10002,
+    MAIL_CONTINUE = 0xCDD10003,
   };
 
   // UCode is forwarding mails to PrepareBootUCode

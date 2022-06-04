@@ -76,11 +76,6 @@ public:
 protected:
   enum MailType
   {
-    MAIL_RESUME = 0xCDD10000,
-    MAIL_NEW_UCODE = 0xCDD10001,
-    MAIL_RESET = 0xCDD10002,
-    MAIL_CONTINUE = 0xCDD10003,
-
     // CPU sends 0xBABE0000 | cmdlist_size to the DSP
     MAIL_CMDLIST = 0xBABE0000,
     MAIL_CMDLIST_MASK = 0xFFFF0000

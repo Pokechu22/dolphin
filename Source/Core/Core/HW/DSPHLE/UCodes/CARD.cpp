@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
 #include "Core/HW/DSP.h"
@@ -82,13 +83,20 @@ void CARDUCode::Initialize()
 
 void CARDUCode::CardUcodeWorkData::WriteAccelerator(u16 value)
 {
-  HLEMemory_Write_U8(0x10000000 | accelerator++, static_cast<u8>(value));
+  WriteARAM(accelerator * 2, value >> 8);
+  WriteARAM(accelerator * 2 + 1, value & 0xFF);
   accelerator++;
 }
 
 u16 CARDUCode::CardUcodeWorkData::ReadAccelerator()
 {
-  return HLEMemory_Read_U8(0x10000000 | accelerator++);
+  u8 val = ReadARAM(accelerator / 2);
+  if (accelerator & 1)
+    val &= 0xf;
+  else
+    val >>= 4;
+  accelerator++;
+  return val;
 }
 
 static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
@@ -110,13 +118,15 @@ static void ProcessParameters(CARDUCode::CardUcodeParameters params)
   CARDUCode::CardUcodeWorkData data{};
 
   // 8649 - 864d - round up size to the next multiple of 4 bytes
-  const u16 modified_size = (params.input_size + 3) & ~3;
+  const u16 dma_size = (params.input_size + 3) & ~3;
   // 864e - 8658 - DMA the input data to 0800 in DRAM
   // (We just use our own buffer instead of dealing with DRAM)
   std::vector<u8> buffer;
-  buffer.reserve(modified_size);
+  buffer.reserve(dma_size);
   const u8* const input_data = static_cast<u8*>(HLEMemory_Get_Pointer(params.mram_input_addr));
-  std::copy(input_data, input_data + modified_size, std::back_inserter(buffer));
+  std::copy(input_data, input_data + dma_size, std::back_inserter(buffer));
+
+  ASSERT(params.input_size >= 2);
 
   // 865a - 8669 - Set up the accelerator
   // Format is 0 (unknown)
@@ -124,7 +134,7 @@ static void ProcessParameters(CARDUCode::CardUcodeParameters params)
   // as it means there is no wrapping.  The actual address to use comes from params.
   data.accelerator = params.aram_work_addr;
 
-  // stuff happens
+  // Copy from dmem to the accelerator.
 
   // Set up the accelerator again
   // Format is 0 (unknown)

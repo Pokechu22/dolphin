@@ -33,11 +33,16 @@ void CARDUCode::Update()
 
 void CARDUCode::HandleMail(u32 mail)
 {
-  static bool next_is_addr = false;
-  if (next_is_addr)
+  static bool nextmail_is_mramaddr = false;
+  static bool calc_done = false;
+
+  if (nextmail_is_mramaddr)
   {
-    next_is_addr = false;
+    nextmail_is_mramaddr = false;
+
     INFO_LOG_FMT(DSPHLE, "CARDUCode - addr: {:x} => {:x}", mail, mail & 0x0fff'ffff);
+
+    calc_done = true;
     m_mail_handler.PushMail(DSP_DONE);
   }
   else if (m_upload_setup_in_progress)
@@ -47,17 +52,24 @@ void CARDUCode::HandleMail(u32 mail)
   else if (mail == 0xFF00'0000)  // unlock card
   {
     INFO_LOG_FMT(DSPHLE, "CARDUCode - Unlock");
-    next_is_addr = true;
+    nextmail_is_mramaddr = true;
   }
-  else if (mail == 0xCDD10001)
+  else if ((mail >> 16 == 0xcdd1) && calc_done)
   {
-    INFO_LOG_FMT(DSPHLE, "CARDUCode - Setting up new ucode");
-    m_upload_setup_in_progress = true;
-  }
-  else if (mail == 0xCDD10002)
-  {
-    INFO_LOG_FMT(DSPHLE, "CARDUCode - Switching to ROM ucode");
-    m_dsphle->SetUCode(UCODE_ROM);
+    switch (mail & 0xffff)
+    {
+    case 1:
+      INFO_LOG_FMT(DSPHLE, "CARDUCode - Setting up new ucode");
+      m_upload_setup_in_progress = true;
+      break;
+    case 2:
+      INFO_LOG_FMT(DSPHLE, "CARDUCode - Switching to ROM ucode");
+      m_dsphle->SetUCode(UCODE_ROM);
+      break;
+    default:
+      WARN_LOG_FMT(DSPHLE, "CARDUCode - unknown 0xcdd1 command: {:08x}", mail);
+      break;
+    }
   }
   else
   {

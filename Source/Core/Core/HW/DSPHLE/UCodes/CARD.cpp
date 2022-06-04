@@ -50,6 +50,29 @@ void CARDUCode::Initialize()
 // fedcba9876543210 -> a115cacc
 // 7c77a5c935f29b44 -> 6ac69ca5
 // 017ca2808a158490 -> df3fbcda
+//
+// card::InitCallback (80356494) is responsible for sending the data.  A breakpoint there also works
+// and allows changing the input parameters.
+//
+// 0000000000000000 with length 0 -> 0bb149da
+// 0000000000000001 with length 0 -> 0bb149da
+// ffffffff with length 0 -> 0bb149da
+// 00000000 with length 1 -> 05efe0aa
+// 00123456 with length 1 -> 05efe0aa
+// 00ffffff with length 1 -> 05efe0aa
+// 01000000 with length 1 -> 05efe0aa (huh)
+// ff000000 with length 1 -> 05efe0aa ... ok.
+// 00000000 with length 2 -> 8ad40b9d
+// 0000ffff with length 2 -> 8ad40b9d
+// 00010000 with length 2 -> 88a1f623
+// 0001ffff with length 2 -> 88a1f623
+// 0100ffff with length 2 -> c8a1f623 - this is different.
+// 00000000 with length 3 -> bec4e592
+// 000000ff with length 3 -> 9e454691
+// 0000ff00 with length 3 -> 3900145c
+//
+// Alright, I don't think I understand how length is supposed to work, or we're doing something
+// wrong in DSP LLE. Oh well. Let's just stick with the length of 8 for now...
 
 void CARDUCode::Update()
 {

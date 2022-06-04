@@ -38,11 +38,6 @@ public:
     u32 work_040c;       // high: 040c, low: 040d
     u32 work_040e;       // high: 040e, low: 040f
     u32 work_0410;       // high: 0410, low: 0411
-
-    // TODO: Figure out what the accelerator format is supposed to do
-    u32 accelerator = 0;
-    void WriteAccelerator(u16 value);
-    u16 ReadAccelerator();
   };
 
   enum class State

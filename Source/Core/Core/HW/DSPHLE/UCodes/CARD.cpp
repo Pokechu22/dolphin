@@ -13,7 +13,17 @@ namespace DSP::HLE
 {
 CARDUCode::CARDUCode(DSPHLE* dsphle, u32 crc) : UCodeInterface(dsphle, crc)
 {
-  INFO_LOG_FMT(DSPHLE, "CARDUCode - initialized");
+  std::string_view type = "unknown";
+  switch (m_crc)
+  {
+  case 0x65d6cc6f:
+    type = "GameCube";
+    break;
+  case 0x65da0c63:
+    type = "Wii";
+    break;
+  }
+  INFO_LOG_FMT(DSPHLE, "CARDUCode - initialized (type: {})", type);
 }
 
 CARDUCode::~CARDUCode()

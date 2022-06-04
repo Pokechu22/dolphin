@@ -234,12 +234,13 @@ std::unique_ptr<UCodeInterface> UCodeFactory(u32 crc, DSPHLE* dsphle, bool wii)
     INFO_LOG_FMT(DSPHLE, "Switching to INIT ucode");
     return std::make_unique<INITUCode>(dsphle, crc);
 
-  case 0x65d6cc6f:  // CARD
-    INFO_LOG_FMT(DSPHLE, "Switching to CARD ucode");
+  case 0x65d6cc6f:  // GC CARD
+  case 0x65da0c63:  // Wii CARD (e.g. System Menu memory card manager)
+    INFO_LOG_FMT(DSPHLE, "CRC {:08x}: Switching to CARD ucode", crc);
     return std::make_unique<CARDUCode>(dsphle, crc);
 
   case 0xdd7e72d5:
-    INFO_LOG_FMT(DSPHLE, "Switching to GBA ucode");
+    INFO_LOG_FMT(DSPHLE, "CRC {:08x}: Switching to GBA ucode", crc);
     return std::make_unique<GBAUCode>(dsphle, crc);
 
   case 0x3ad3b7ac:  // Naruto 3, Paper Mario - The Thousand Year Door

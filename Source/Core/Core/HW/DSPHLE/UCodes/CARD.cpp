@@ -77,6 +77,9 @@ void CARDUCode::Initialize()
 //
 // I think a length of 0 or 1 just isn't handled correctly, but any length >= 2, odd or even, works
 // (of course, I've only tested 2, 3, or 8).
+//
+// This HLE implementation matches Dolphin's DSP LLE for all inputs listed above apart from the
+// zero-length ones.  Testing has not been done on real hardware yet.
 
 static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
 {
@@ -166,8 +169,6 @@ static void DoCardHash(CARDUCode::CardUcodeParameters params)
   const u8* const input_data = static_cast<u8*>(HLEMemory_Get_Pointer(params.mram_input_addr));
   std::copy(input_data, input_data + dma_size, std::back_inserter(buffer));
 
-  ASSERT(params.input_size >= 2);
-
   // 865a - 8669 - Set up the accelerator
   s_accelerator->SetSampleFormat(0);
   s_accelerator->SetStartAddress(0);
@@ -223,11 +224,14 @@ static void DoCardHash(CARDUCode::CardUcodeParameters params)
   // 86b2 - 86d2 - Actually do the hashing
   u16 prev1 = s_accelerator->ReadD3();
   u16 prev2 = s_accelerator->ReadD3();
+
+  ASSERT(params.input_size != 0);
+
   u16 new_counter;
   if (params.input_size != 0)
     new_counter = (params.input_size - 1) / 2;
   else
-    new_counter = 0xffff;  // TODO: Does this case actually happen?
+    new_counter = 0;  // TODO: Does this case actually happen?
 
   for (u32 i = 0; i < new_counter; i++)
   {

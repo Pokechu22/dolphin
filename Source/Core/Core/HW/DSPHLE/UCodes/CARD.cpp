@@ -87,6 +87,17 @@ void CARDUCode::Initialize()
 //
 // This HLE implementation matches Dolphin's DSP LLE for all inputs listed above apart from the
 // zero-length ones.  Testing has not been done on real hardware yet.
+//
+// The above testing was done with LLE recompiler.  LLE interpreter seems to behave different for
+// length 0...
+//
+// On LLE interpreter (and now this HLE version), 0 bytes are read into ARAM when length is 0,
+// but it processes 0x40000 nybbles (0x10000 words).  This means the initial ARAM contents matters.
+// If they are zero, the hash is 0ecc54f7 (both here and LLE int).  For Super Mario Sunshine, the
+// default is 029f0010 029f0033 029f0034 029f0035 029f0036 029f0037 029f0038 029f0039 followed by
+// all zeros, which gives a hash of 691cbad0.
+//
+// I haven't determined the cause of the bug for LLE Rec yet.
 
 static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
 {
@@ -232,13 +243,18 @@ static void DoCardHash(CARDUCode::CardUcodeParameters params)
   u16 prev1 = s_accelerator->ReadD3();
   u16 prev2 = s_accelerator->ReadD3();
 
-  ASSERT(params.input_size != 0);
-
   u16 new_counter;
   if (params.input_size != 0)
+  {
     new_counter = (params.input_size - 1) / 2;
+  }
   else
-    new_counter = 0;  // TODO: Does this case actually happen?
+  {
+    // This happens due to underflow, which also affects the high byte, so even with a logical
+    // right shift sign extension is observed.
+    // Also, this situation almost certainly never occurs in practice.
+    new_counter = 0xffff;
+  }
 
   for (u32 i = 0; i < new_counter; i++)
   {

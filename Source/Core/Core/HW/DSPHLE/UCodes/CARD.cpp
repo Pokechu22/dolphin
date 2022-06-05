@@ -15,15 +15,18 @@
 
 namespace DSP::HLE
 {
+constexpr u32 CRC_GAMECUBE = 0x65d6cc6f;
+constexpr u32 CRC_WII = 0x65da0c63;
+
 CARDUCode::CARDUCode(DSPHLE* dsphle, u32 crc) : UCodeInterface(dsphle, crc)
 {
   std::string_view type = "unknown";
   switch (m_crc)
   {
-  case 0x65d6cc6f:
+  case CRC_GAMECUBE:
     type = "GameCube";
     break;
-  case 0x65da0c63:
+  case CRC_WII:
     type = "Wii";
     break;
   }
@@ -305,7 +308,14 @@ void CARDUCode::HandleMail(u32 mail)
   case State::WaitingForAddress:
   {
     // Waiting, reading the address, and masking happens at 002e - 0032
-    const u32 address = mail & 0x0fff'ffff;
+
+    // Note that the difference in masking also happens in PrepareBootUCode, but we don't directly
+    // handle that (HLEMemory_Get_Pointer does behave differently in Wii vs GameCube mode,
+    // but based on the console's mode and not the uCode itself)
+    // There are only 3 bytes that differ between the GC and Wii card uCode, and they are all
+    // for masking (here, on iram_mram_addr, and on dram_mram_addr)
+    const u32 mask = (m_crc == CRC_WII) ? 0x3fff'ffff : 0x0fff'ffff;
+    const u32 address = mail & mask;
 
     INFO_LOG_FMT(DSPHLE, "CARDUCode - Reading input parameters from address {:08x} ({:08x})",
                  address, mail);

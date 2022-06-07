@@ -36,7 +36,7 @@ void CMailHandler::PushMail(u32 mail, bool interrupt, int cycles_into_future)
     }
   }
   m_Mails.emplace(mail, false);
-  DEBUG_LOG_FMT(DSP_MAIL, "DSP writes {:#010x}", mail);
+  INFO_LOG_FMT(DSP_MAIL, "DSP writes {:#010x}", mail);
 }
 
 u16 CMailHandler::ReadDSPMailboxHigh()

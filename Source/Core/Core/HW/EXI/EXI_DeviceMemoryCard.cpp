@@ -114,7 +114,7 @@ CEXIMemoryCard::CEXIMemoryCard(const Slot slot, bool gci_folder,
   m_interrupt_switch = 0;
   m_interrupt_set = false;
   m_command = Command::NintendoID;
-  m_status = MC_STATUS_BUSY | MC_STATUS_READY;
+  m_status = MC_STATUS_BUSY | MC_STATUS_UNLOCKED | MC_STATUS_READY;
   m_position = 0;
   m_programming_buffer.fill(0);
   // Nintendo Memory Card EXI IDs

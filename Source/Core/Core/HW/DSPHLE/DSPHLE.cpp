@@ -7,6 +7,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/MsgHandler.h"
 #include "Core/Core.h"
+#include "Core/PowerPC/PowerPC.h"
 #include "Core/HW/DSPHLE/UCodes/UCodes.h"
 #include "Core/HW/SystemTimers.h"
 
@@ -142,7 +143,9 @@ u16 DSPHLE::DSP_ReadMailBoxHigh(bool cpu_mailbox)
   }
   else
   {
-    return AccessMailHandler().ReadDSPMailboxHigh();
+    u16 h = AccessMailHandler().ReadDSPMailboxHigh();
+    INFO_LOG_FMT(DSPHLE, "Read mailbox high: {:04x} from {:08x}", h, PC);
+    return h;
   }
 }
 
@@ -154,7 +157,9 @@ u16 DSPHLE::DSP_ReadMailBoxLow(bool cpu_mailbox)
   }
   else
   {
-    return AccessMailHandler().ReadDSPMailboxLow();
+    u16 l = AccessMailHandler().ReadDSPMailboxLow();
+    INFO_LOG_FMT(DSPHLE, "Read mailbox low: {:04x} from {:08x}", l, PC);
+    return l;
   }
 }
 

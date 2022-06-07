@@ -310,13 +310,22 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
 
   mmio->Register(
       base | DSP_CONTROL, MMIO::ComplexRead<u16>([](u32) {
+        u16 a = s_dspState.Hex;
+        u16 a_ = (a & ~DSP_CONTROL_MASK);
+        u16 b = s_dsp_emulator->DSP_ReadControlRegister();
+        u16 b_ = b & DSP_CONTROL_MASK;
+        INFO_LOG_FMT(DSPLLE, "Read control: {:04x} ({:04x}) | {:04x} ({:04x}) -> {:04x}", a, a_, b,
+                     b_, a_ | b_);
         return (s_dspState.Hex & ~DSP_CONTROL_MASK) |
                (s_dsp_emulator->DSP_ReadControlRegister() & DSP_CONTROL_MASK);
       }),
       MMIO::ComplexWrite<u16>([](u32, u16 val) {
+        INFO_LOG_FMT(DSPLLE, "Write control: {:04x} (was {:04x} ish)", val, s_dspState.Hex);
         UDSPControl tmpControl;
-        tmpControl.Hex = (val & ~DSP_CONTROL_MASK) |
-                         (s_dsp_emulator->DSP_WriteControlRegister(val) & DSP_CONTROL_MASK);
+        u16 a = (val & ~DSP_CONTROL_MASK);
+        u16 b = s_dsp_emulator->DSP_WriteControlRegister(val);
+        u16 c = b & DSP_CONTROL_MASK;
+        tmpControl.Hex = a | c;
 
         // Not really sure if this is correct, but it works...
         // Kind of a hack because DSP_CONTROL_MASK should make this bit
@@ -354,6 +363,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
               "DSPInterface (w) DSP state (CC00500A) gets a value with junk in the padding {:08x}",
               val);
         }
+        INFO_LOG_FMT(DSPLLE, "More control write: {:04x} | ({:04x} -> {:04x}) -> {:04x} -> {:04x}", a, b, c, a | c, s_dspState.Hex);
 
         UpdateInterrupts();
       }));
@@ -513,7 +523,7 @@ static void Do_ARAM_DMA()
   if (s_arDMA.Cnt.dir)
   {
     // ARAM -> MRAM
-    DEBUG_LOG_FMT(DSPINTERFACE, "DMA {:08x} bytes from ARAM {:08x} to MRAM {:08x} PC: {:08x}",
+    INFO_LOG_FMT(DSPINTERFACE, "DMA {:08x} bytes from ARAM {:08x} to MRAM {:08x} PC: {:08x}",
                   s_arDMA.Cnt.count, s_arDMA.ARAddr, s_arDMA.MMAddr, PC);
 
     // Outgoing data from ARAM is mirrored every 64MB (verified on real HW)
@@ -558,7 +568,7 @@ static void Do_ARAM_DMA()
   else
   {
     // MRAM -> ARAM
-    DEBUG_LOG_FMT(DSPINTERFACE, "DMA {:08x} bytes from MRAM {:08x} to ARAM {:08x} PC: {:08x}",
+    INFO_LOG_FMT(DSPINTERFACE, "DMA {:08x} bytes from MRAM {:08x} to ARAM {:08x} PC: {:08x}",
                   s_arDMA.Cnt.count, s_arDMA.MMAddr, s_arDMA.ARAddr, PC);
 
     // Incoming data into ARAM is mirrored every 64MB (verified on real HW)

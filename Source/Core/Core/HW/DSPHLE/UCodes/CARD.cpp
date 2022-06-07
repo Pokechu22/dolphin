@@ -98,9 +98,6 @@ void CARDUCode::Initialize()
 // all zeros, which gives a hash of 691cbad0.
 //
 // I haven't determined the cause of the bug for LLE Rec yet.
-//
-// Update: The LLE Rec bug has been fixed (https://github.com/dolphin-emu/dolphin/pull/10723).
-// Now both give 691cbad0 for the default memory contents.
 
 static CARDUCode::CardUcodeParameters ReadParameters(u32 address)
 {

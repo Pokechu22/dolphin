@@ -41,15 +41,16 @@ u16 SDSP::ReadMailboxLow(Mailbox mailbox)
 
   if (m_dsp_core.GetInitHax() && mailbox == Mailbox::DSP)
   {
-    INFO_LOG_FMT(DSP_MAIL, "INIT HAX L: {:04x}", pc);
     m_dsp_core.SetInitHax(false);
     m_dsp_core.Reset();
     return 0x4348;
   }
 
+#if defined(_DEBUG) || defined(DEBUGFAST)
   const char* const type = mailbox == Mailbox::DSP ? "DSP" : "CPU";
-  INFO_LOG_FMT(DSP_MAIL, "{}(RM) B:{} M:0x{:#010x} (pc={:#06x})", type, static_cast<int>(mailbox),
+  DEBUG_LOG_FMT(DSP_MAIL, "{}(RM) B:{} M:0x{:#010x} (pc={:#06x})", type, static_cast<int>(mailbox),
                 PeekMailbox(mailbox), pc);
+#endif
 
   return static_cast<u16>(value);
 }
@@ -58,7 +59,6 @@ u16 SDSP::ReadMailboxHigh(Mailbox mailbox)
 {
   if (m_dsp_core.GetInitHax() && mailbox == Mailbox::DSP)
   {
-    INFO_LOG_FMT(DSP_MAIL, "INIT HAX H: {:04x}", pc);
     return 0x8054;
   }
 
@@ -73,9 +73,11 @@ void SDSP::WriteMailboxLow(Mailbox mailbox, u16 value)
 
   GetMailbox(mailbox).store(new_value | 0x80000000, std::memory_order_release);
 
+#if defined(_DEBUG) || defined(DEBUGFAST)
   const char* const type = mailbox == Mailbox::DSP ? "DSP" : "CPU";
-  INFO_LOG_FMT(DSP_MAIL, "{}(WM) B:{} M:{:#010x} (pc={:#06x})", type, static_cast<int>(mailbox),
+  DEBUG_LOG_FMT(DSP_MAIL, "{}(WM) B:{} M:{:#010x} (pc={:#06x})", type, static_cast<int>(mailbox),
                 PeekMailbox(mailbox), pc);
+#endif
 }
 
 void SDSP::WriteMailboxHigh(Mailbox mailbox, u16 value)

@@ -13,6 +13,7 @@
 #include "Core/DSP/DSPTables.h"
 #include "Core/DSP/Interpreter/DSPIntCCUtil.h"
 #include "Core/DSP/Interpreter/DSPIntTables.h"
+#include "Core/HW/SystemTimers.h"
 
 namespace DSP::Interpreter
 {
@@ -214,6 +215,16 @@ int Interpreter::RunCycles(int cycles)
 // NOTE: These have nothing to do with SDSP::r::cr!
 void Interpreter::WriteCR(u16 val)
 {
+  auto& state = m_dsp_core.DSPState();
+
+  if ((state.control_reg & CR_HALT) != (val & CR_HALT))
+  {
+    // This bit is handled by Interpreter::RunCycles and DSPEmitter::CompileDispatcher
+    INFO_LOG_FMT(DSPLLE, "DSP_CONTROL halt bit changed: {:04x} -> {:04x}", state.control_reg, val);
+  }
+
+  // The CR_EXTERNAL_INT bit is handled by DSPLLE::DSP_WriteControlRegister
+
   // reset
   if ((val & CR_RESET) != 0)
   {
@@ -221,33 +232,32 @@ void Interpreter::WriteCR(u16 val)
     m_dsp_core.Reset();
     val &= ~CR_RESET;
   }
-  // init
-  else if (val == CR_HALT)
+  // init - unclear if writing CR_INIT_CODE does something. Clearing CR_INIT immediately sets
+  // CR_INIT_CODE, which unsets a bit later...
+  if ((val & CR_INIT) == 0)
   {
     // HAX!
     // OSInitAudioSystem ucode should send this mail - not DSP core itself
     INFO_LOG_FMT(DSPLLE, "DSP_CONTROL INIT");
     m_dsp_core.SetInitHax(true);
-    val |= CR_INIT;
+    val &= ~CR_INIT;
+    val |= CR_INIT_CODE;
+    // Number computed from real hardware on a Wii
+    state.control_reg_init_code_clear_time = SystemTimers::GetFakeTimeBase() + 128;
   }
 
   // update cr
-  m_dsp_core.DSPState().control_reg = val;
+  state.control_reg = val;
 }
 
 u16 Interpreter::ReadCR()
 {
   auto& state = m_dsp_core.DSPState();
-
-  if ((state.pc & 0x8000) != 0)
+  if ((state.control_reg & CR_INIT_CODE) != 0)
   {
-    state.control_reg |= CR_INIT;
+    if (SystemTimers::GetFakeTimeBase() >= state.control_reg_init_code_clear_time)
+      state.control_reg &= ~CR_INIT_CODE;
   }
-  else
-  {
-    state.control_reg &= ~CR_INIT;
-  }
-
   return state.control_reg;
 }
 

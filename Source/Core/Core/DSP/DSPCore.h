@@ -424,6 +424,7 @@ struct SDSP
   // The engine has control over 0x0C07 of this reg.
   // Bits are defined in a struct in DSP.cpp.
   u16 control_reg = 0;
+  u64 control_reg_init_code_clear_time = 0;
 
   u8 reg_stack_ptrs[4]{};
   u8 exceptions = 0;  // pending exceptions

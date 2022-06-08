@@ -236,12 +236,12 @@ void Interpreter::WriteCR(u16 val)
     val &= ~CR_RESET;
   }
   // init - unclear if writing CR_INIT_CODE does something. Clearing CR_INIT immediately sets
-  // CR_INIT_CODE, which unsets a bit later...
+  // CR_INIT_CODE, which gets unset a bit later...
   if (((state.control_reg & CR_INIT) != 0) && ((val & CR_INIT) == 0))
   {
     INFO_LOG_FMT(DSPLLE, "DSP_CONTROL INIT");
-    // Copy 1024 bytes of uCode from main memory 0x81000000 (or is it ARAM 00000000?) to DMEM 0000
-    // and jump to that code
+    // Copy 1024(?) bytes of uCode from main memory 0x81000000 (or is it ARAM 00000000?)
+    // to IMEM 0000 and jump to that code
     // TODO: Determine exactly how this initialization works
     state.pc = 0;
     state.IDMAIn(0, 0x81000000, 1024);

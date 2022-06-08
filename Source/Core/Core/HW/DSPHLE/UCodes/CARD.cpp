@@ -35,7 +35,6 @@ CARDUCode::CARDUCode(DSPHLE* dsphle, u32 crc) : UCodeInterface(dsphle, crc)
 
 CARDUCode::~CARDUCode()
 {
-  m_mail_handler.Clear();
 }
 
 void CARDUCode::Initialize()
@@ -286,11 +285,6 @@ static void DoCardHash(CARDUCode::CardUcodeParameters params)
 
 void CARDUCode::Update()
 {
-  // check if we have to sent something
-  if (!m_mail_handler.IsEmpty())
-  {
-    DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
-  }
 }
 
 void CARDUCode::HandleMail(u32 mail)
@@ -346,7 +340,7 @@ void CARDUCode::HandleMail(u32 mail)
     DoCardHash(params);
 
     // 003f - 0045: send a response.
-    m_mail_handler.PushMail(DSP_DONE);
+    m_mail_handler.PushMail(DSP_DONE, true);
     m_state = State::WaitingForNextTask;
     break;
   }

@@ -75,7 +75,6 @@ GBAUCode::GBAUCode(DSPHLE* dsphle, u32 crc) : UCodeInterface(dsphle, crc)
 
 GBAUCode::~GBAUCode()
 {
-  m_mail_handler.Clear();
 }
 
 void GBAUCode::Initialize()
@@ -85,11 +84,6 @@ void GBAUCode::Initialize()
 
 void GBAUCode::Update()
 {
-  // check if we have to send something
-  if (!m_mail_handler.IsEmpty())
-  {
-    DSP::GenerateDSPInterruptFromDSPEmu(DSP::INT_DSP);
-  }
 }
 
 void GBAUCode::HandleMail(u32 mail)
@@ -112,7 +106,7 @@ void GBAUCode::HandleMail(u32 mail)
     ProcessGBACrypto(mail);
 
     calc_done = true;
-    m_mail_handler.PushMail(DSP_DONE);
+    m_mail_handler.PushMail(DSP_DONE, true);
   }
   else if ((mail >> 16 == 0xcdd1) && calc_done)
   {

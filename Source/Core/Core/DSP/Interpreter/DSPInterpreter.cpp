@@ -8,11 +8,13 @@
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
 
+#include "Core/CoreTiming.h"
 #include "Core/DSP/DSPAnalyzer.h"
 #include "Core/DSP/DSPCore.h"
 #include "Core/DSP/DSPTables.h"
 #include "Core/DSP/Interpreter/DSPIntCCUtil.h"
 #include "Core/DSP/Interpreter/DSPIntTables.h"
+#include "Core/HW/Memmap.h"
 #include "Core/HW/SystemTimers.h"
 
 namespace DSP::Interpreter
@@ -220,7 +222,8 @@ void Interpreter::WriteCR(u16 val)
   if ((state.control_reg & CR_HALT) != (val & CR_HALT))
   {
     // This bit is handled by Interpreter::RunCycles and DSPEmitter::CompileDispatcher
-    INFO_LOG_FMT(DSPLLE, "DSP_CONTROL halt bit changed: {:04x} -> {:04x}", state.control_reg, val);
+    INFO_LOG_FMT(DSPLLE, "DSP_CONTROL halt bit changed: {:04x} -> {:04x}, PC {:04x}",
+                 state.control_reg, val, state.pc);
   }
 
   // The CR_EXTERNAL_INT bit is handled by DSPLLE::DSP_WriteControlRegister
@@ -234,16 +237,19 @@ void Interpreter::WriteCR(u16 val)
   }
   // init - unclear if writing CR_INIT_CODE does something. Clearing CR_INIT immediately sets
   // CR_INIT_CODE, which unsets a bit later...
-  if ((val & CR_INIT) == 0)
+  if (((state.control_reg & CR_INIT) != 0) && ((val & CR_INIT) == 0))
   {
-    // HAX!
-    // OSInitAudioSystem ucode should send this mail - not DSP core itself
     INFO_LOG_FMT(DSPLLE, "DSP_CONTROL INIT");
-    m_dsp_core.SetInitHax(true);
+    // Copy 1024 bytes of uCode from main memory 0x81000000 (or is it ARAM 00000000?) to DMEM 0000
+    // and jump to that code
+    // TODO: Determine exactly how this initialization works
+    state.pc = 0;
+    state.IDMAIn(0, 0x81000000, 1024);
+
     val &= ~CR_INIT;
     val |= CR_INIT_CODE;
-    // Number computed from real hardware on a Wii
-    state.control_reg_init_code_clear_time = SystemTimers::GetFakeTimeBase() + 128;
+    // Number obtained from real hardware on a Wii, but it's not perfectly consistent
+    state.control_reg_init_code_clear_time = SystemTimers::GetFakeTimeBase() + 130;
   }
 
   // update cr
@@ -257,6 +263,8 @@ u16 Interpreter::ReadCR()
   {
     if (SystemTimers::GetFakeTimeBase() >= state.control_reg_init_code_clear_time)
       state.control_reg &= ~CR_INIT_CODE;
+    else
+      CoreTiming::ForceExceptionCheck(50);  // Keep checking
   }
   return state.control_reg;
 }

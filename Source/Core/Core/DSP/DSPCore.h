@@ -455,7 +455,11 @@ private:
   void DoDMA();
   const u8* DDMAIn(u16 dsp_addr, u32 addr, u32 size);
   const u8* DDMAOut(u16 dsp_addr, u32 addr, u32 size);
+
+public:
   const u8* IDMAIn(u16 dsp_addr, u32 addr, u32 size);
+
+private:
   const u8* IDMAOut(u16 dsp_addr, u32 addr, u32 size);
 
   u16 ReadIFXImpl(u16 address);
@@ -577,9 +581,6 @@ public:
 
   Interpreter::Interpreter& GetInterpreter() { return *m_dsp_interpreter; }
   const Interpreter::Interpreter& GetInterpreter() const { return *m_dsp_interpreter; }
-
-  bool GetInitHax() const { return m_init_hax; }
-  void SetInitHax(bool value) { m_init_hax = value; }
 
 private:
   SDSP m_dsp;

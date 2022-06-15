@@ -148,6 +148,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                        // TODO: This doesn't work.  How can I make something that works?
                        CBoot::BootUp(std::make_unique<BootParameters>(
                            BootParameters::IPL{SConfig::GetInstance().m_region}));
+                       NPC = PC;
                      }
                      if (~m_ResetCode & 0x2)
                      {

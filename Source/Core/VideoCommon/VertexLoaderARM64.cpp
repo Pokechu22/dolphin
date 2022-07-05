@@ -147,9 +147,10 @@ std::variant<ARM64Reg, u32> VertexLoaderARM64::GetVertexAddr(CPArray array,
 }
 
 // Mutates scratch2_reg, but does not mutate scratch1_reg or scratch3_reg
-int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentFormat format,
-                                  int count_in, int count_out, bool dequantize, u8 scaling_exponent,
-                                  AttributeFormat* native_format, std::variant<ARM64Reg, u32> src)
+void VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentFormat format,
+                                   int count_in, int count_out, bool dequantize,
+                                   u8 scaling_exponent, AttributeFormat* native_format,
+                                   std::variant<ARM64Reg, u32> src)
 {
   ARM64Reg coords = count_in == 3 ? ARM64Reg::Q31 : ARM64Reg::D31;
   ARM64Reg scale = count_in == 3 ? ARM64Reg::Q30 : ARM64Reg::D30;
@@ -272,8 +273,6 @@ int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentForm
 
   if (attribute == VertexComponentFormat::Direct)
     m_src_ofs += load_bytes;
-
-  return load_bytes;
 }
 
 void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat format,
@@ -515,34 +514,63 @@ void VertexLoaderARM64::GenerateVertexLoader()
   {
     static const u8 map[8] = {7, 6, 15, 14};
     const u8 scaling_exponent = map[u32(m_VtxAttr.g0.NormalFormat.Value())];
-    const int limit = m_VtxAttr.g0.NormalElements == NormalComponentCount::NTB ? 3 : 1;
 
-    std::variant<ARM64Reg, u32> addr{scratch1_reg};
-    for (int i = 0; i < limit; i++)
+    const int elem_size = GetElementSize(m_VtxAttr.g0.NormalFormat);
+
+    const int load_bytes = elem_size * 3;
+    const int load_size = GetLoadSize(load_bytes);
+
+    // Normal
+    std::variant<ARM64Reg, u32> addr = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal,
+                                                     EncodeRegTo64(scratch1_reg), load_size << 3);
+    ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
+               &m_native_vtx_decl.normals[0], addr);
+
+    if (m_VtxAttr.g0.NormalElements == NormalComponentCount::NTB)
     {
-      if (!i || m_VtxAttr.g0.NormalIndex3)
+      const bool index3 = IsIndexed(m_VtxDesc.low.Normal) && m_VtxAttr.g0.NormalIndex3;
+
+      // Tangent
+      // If in Index3 mode, and indexed components are used, replace the index with a new index.
+      if (index3)
       {
-        int elem_size = GetElementSize(m_VtxAttr.g0.NormalFormat);
-
-        int load_bytes = elem_size * 3;
-        int load_size = GetLoadSize(load_bytes);
-
         addr = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal, EncodeRegTo64(scratch1_reg),
                              load_size << 3);
-
-        std::visit(overloaded{[&](ARM64Reg reg) {
-                                ADD(EncodeRegTo64(reg), EncodeRegTo64(reg), i * elem_size * 3);
-                              },
-                              [&](u32& offset) { offset += i * elem_size * 3; }},
-                   addr);
       }
-      int bytes_read = ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true,
-                                  scaling_exponent, &m_native_vtx_decl.normals[i], addr);
-
+      // The tangent comes after the normal; even in index3 mode, this offset is applied.
+      // Note that this is different from adding 1 to the index, as the stride for indices may be
+      // different from the size of the tangent itself.
       std::visit(
-          overloaded{[&](ARM64Reg reg) { ADD(EncodeRegTo64(reg), EncodeRegTo64(reg), bytes_read); },
-                     [&](u32& offset) { offset += bytes_read; }},
+          overloaded{[&](ARM64Reg reg) { ADD(EncodeRegTo64(reg), EncodeRegTo64(reg), load_bytes); },
+                     [&](u32& offset) { offset += load_bytes; }},
           addr);
+
+      ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
+                 &m_native_vtx_decl.normals[1], addr);
+
+      // Undo the offset above so that data points to the normal instead of the tangent.
+      // This way, we can add 2*elem_size below to always point to the binormal, even if we replace
+      // data with a new index (which would point to the normal).
+      std::visit(
+          overloaded{[&](ARM64Reg reg) { SUB(EncodeRegTo64(reg), EncodeRegTo64(reg), load_bytes); },
+                     [&](u32& offset) { offset -= load_bytes; }},
+          addr);
+
+      // Binormal
+      if (index3)
+      {
+        addr = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal, EncodeRegTo64(scratch1_reg),
+                             load_size << 3);
+      }
+      std::visit(overloaded{[&](ARM64Reg reg) {
+                              ADD(EncodeRegTo64(scratch1_reg), EncodeRegTo64(scratch1_reg),
+                                  load_bytes * 2);
+                            },
+                            [&](u32& offset) { offset += load_bytes * 2; }},
+                 addr);
+
+      ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
+                 &m_native_vtx_decl.normals[2], addr);
     }
   }
 

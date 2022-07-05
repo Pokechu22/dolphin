@@ -30,9 +30,9 @@ private:
   Arm64Gen::ARM64FloatEmitter m_float_emit;
   std::variant<Arm64Gen::ARM64Reg, u32>
   GetVertexAddr(CPArray array, VertexComponentFormat attribute, Arm64Gen::ARM64Reg reg, u32 align);
-  int ReadVertex(VertexComponentFormat attribute, ComponentFormat format, int count_in,
-                 int count_out, bool dequantize, u8 scaling_exponent,
-                 AttributeFormat* native_format, std::variant<Arm64Gen::ARM64Reg, u32> src);
+  void ReadVertex(VertexComponentFormat attribute, ComponentFormat format, int count_in,
+                  int count_out, bool dequantize, u8 scaling_exponent,
+                  AttributeFormat* native_format, std::variant<Arm64Gen::ARM64Reg, u32> src);
   void ReadColor(VertexComponentFormat attribute, ColorFormat format,
                  std::variant<Arm64Gen::ARM64Reg, u32> src);
   void GenerateVertexLoader();

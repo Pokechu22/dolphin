@@ -74,7 +74,8 @@ VertexLoaderARM64::VertexLoaderARM64(const TVtxDesc& vtx_desc, const VAT& vtx_at
   WriteProtect();
 }
 
-void VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attribute, ARM64Reg reg)
+s32 VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attribute, ARM64Reg reg,
+                                     u32 align)
 {
   if (IsIndexed(attribute))
   {
@@ -124,23 +125,20 @@ void VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attri
     LDR(IndexType::Unsigned, EncodeRegTo64(scratch2_reg), arraybase_reg,
         static_cast<u8>(array) * 8);
     ADD(EncodeRegTo64(reg), EncodeRegTo64(scratch1_reg), EncodeRegTo64(scratch2_reg));
-  }
-  else
-    ADD(reg, src_reg, m_src_ofs);
-}
-
-s32 VertexLoaderARM64::GetAddressImm(CPArray array, VertexComponentFormat attribute,
-                                     Arm64Gen::ARM64Reg reg, u32 align)
-{
-  if (IsIndexed(attribute) ||
-      (!IsValidUnscaledImmediateOffset(m_src_ofs) && !(IsValidImmediateOffset(m_src_ofs, align))))
-  {
-    GetVertexAddr(array, attribute, reg);
     return -1;
   }
-  else
+  else  // not indexed
   {
-    return m_src_ofs;
+    if (IsValidUnscaledImmediateOffset(m_src_ofs) || IsValidImmediateOffset(m_src_ofs, align))
+    {
+      // We can directly use m_src_ofs as an offset in a load instruction
+      return m_src_ofs;
+    }
+    else
+    {
+      ADD(reg, src_reg, m_src_ofs);
+      return -1;
+    }
   }
 }
 
@@ -483,7 +481,7 @@ void VertexLoaderARM64::GenerateVertexLoader()
     int load_size = GetLoadSize(load_bytes);
     load_size <<= 3;
 
-    s32 offset = GetAddressImm(CPArray::Position, m_VtxDesc.low.Position,
+    s32 offset = GetVertexAddr(CPArray::Position, m_VtxDesc.low.Position,
                                EncodeRegTo64(scratch1_reg), load_size);
     ReadVertex(m_VtxDesc.low.Position, m_VtxAttr.g0.PosFormat, pos_elements, pos_elements,
                m_VtxAttr.g0.ByteDequant, m_VtxAttr.g0.PosFrac, &m_native_vtx_decl.position, offset);
@@ -505,7 +503,7 @@ void VertexLoaderARM64::GenerateVertexLoader()
         int load_bytes = elem_size * 3;
         int load_size = GetLoadSize(load_bytes);
 
-        offset = GetAddressImm(CPArray::Normal, m_VtxDesc.low.Normal, EncodeRegTo64(scratch1_reg),
+        offset = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal, EncodeRegTo64(scratch1_reg),
                                load_size << 3);
 
         if (offset == -1)
@@ -536,7 +534,7 @@ void VertexLoaderARM64::GenerateVertexLoader()
           m_VtxAttr.GetColorFormat(i) == ColorFormat::RGBA4444)
         align = 2;
 
-      s32 offset = GetAddressImm(CPArray::Color0 + i, m_VtxDesc.low.Color[i],
+      s32 offset = GetVertexAddr(CPArray::Color0 + i, m_VtxDesc.low.Color[i],
                                  EncodeRegTo64(scratch1_reg), align);
       ReadColor(m_VtxDesc.low.Color[i], m_VtxAttr.GetColorFormat(i), offset);
       m_native_vtx_decl.colors[i].components = 4;
@@ -562,7 +560,7 @@ void VertexLoaderARM64::GenerateVertexLoader()
       int load_size = GetLoadSize(load_bytes);
       load_size <<= 3;
 
-      s32 offset = GetAddressImm(CPArray::TexCoord0 + i, m_VtxDesc.high.TexCoord[i],
+      s32 offset = GetVertexAddr(CPArray::TexCoord0 + i, m_VtxDesc.high.TexCoord[i],
                                  EncodeRegTo64(scratch1_reg), load_size);
       u8 scaling_exponent = m_VtxAttr.GetTexFrac(i);
       ReadVertex(m_VtxDesc.high.TexCoord[i], m_VtxAttr.GetTexFormat(i), elements,

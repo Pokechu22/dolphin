@@ -132,26 +132,26 @@ int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentForm
   ARM64Reg coords = count_in == 3 ? ARM64Reg::Q31 : ARM64Reg::D31;
   ARM64Reg scale = count_in == 3 ? ARM64Reg::Q30 : ARM64Reg::D30;
 
-  int elem_size = GetElementSize(format);
-  int load_bytes = elem_size * count_in;
-  int load_size = GetLoadSize(load_bytes);
-  load_size <<= 3;
-  elem_size <<= 3;
+  const int elem_size_bytes = GetElementSize(format);
+  const int load_bytes = elem_size_bytes * count_in;
+  const int load_size_bytes = GetLoadSize(load_bytes);
+  const int load_size_bits = load_size_bytes << 3;
+  const int elem_size_bits = elem_size_bytes << 3;
 
   if (offset == -1)
   {
     if (count_in == 1)
-      m_float_emit.LDR(elem_size, IndexType::Unsigned, coords, EncodeRegTo64(scratch1_reg), 0);
+      m_float_emit.LDR(elem_size_bits, IndexType::Unsigned, coords, EncodeRegTo64(scratch1_reg), 0);
     else
-      m_float_emit.LD1(elem_size, 1, coords, EncodeRegTo64(scratch1_reg));
+      m_float_emit.LD1(elem_size_bits, 1, coords, EncodeRegTo64(scratch1_reg));
   }
-  else if (offset & (load_size - 1))  // Not aligned - unscaled
+  else if (offset & (load_size_bytes - 1))  // Not aligned - unscaled
   {
-    m_float_emit.LDUR(load_size, coords, src_reg, offset);
+    m_float_emit.LDUR(load_size_bits, coords, src_reg, offset);
   }
   else
   {
-    m_float_emit.LDR(load_size, IndexType::Unsigned, coords, src_reg, offset);
+    m_float_emit.LDR(load_size_bits, IndexType::Unsigned, coords, src_reg, offset);
   }
 
   if (format != ComponentFormat::Float)

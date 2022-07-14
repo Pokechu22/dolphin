@@ -39,6 +39,20 @@ static constexpr int GetLoadSize(int load_bytes)
     return 16;
 }
 
+static constexpr bool IsValidUnscaledImmediateOffset(u32 offset)
+{
+  return offset <= 0xff;
+}
+
+static constexpr bool IsValidImmediateOffset(u32 offset, u32 size)
+{
+  // Regular (scaled) loads require alignment
+  if ((offset & (size - 1)) != 0)
+    return false;
+  // The actual offset needs to be at most 0xfff (before the scale is multiplied)
+  return (offset / size) <= 0xfff;
+}
+
 alignas(16) static const float scale_factors[] = {
     1.0 / (1ULL << 0),  1.0 / (1ULL << 1),  1.0 / (1ULL << 2),  1.0 / (1ULL << 3),
     1.0 / (1ULL << 4),  1.0 / (1ULL << 5),  1.0 / (1ULL << 6),  1.0 / (1ULL << 7),
@@ -66,7 +80,7 @@ void VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attri
   {
     if (attribute == VertexComponentFormat::Index8)
     {
-      if (m_src_ofs < 4096)
+      if (IsValidImmediateOffset(m_src_ofs, 1))
       {
         LDRB(IndexType::Unsigned, scratch1_reg, src_reg, m_src_ofs);
       }
@@ -77,13 +91,13 @@ void VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attri
       }
       m_src_ofs += 1;
     }
-    else
+    else  // Index16
     {
-      if (m_src_ofs < 256)
+      if (IsValidUnscaledImmediateOffset(m_src_ofs))
       {
         LDURH(scratch1_reg, src_reg, m_src_ofs);
       }
-      else if (m_src_ofs <= 8190 && !(m_src_ofs & 1))
+      else if (IsValidImmediateOffset(m_src_ofs, 2))
       {
         LDRH(IndexType::Unsigned, scratch1_reg, src_reg, m_src_ofs);
       }
@@ -118,11 +132,16 @@ void VertexLoaderARM64::GetVertexAddr(CPArray array, VertexComponentFormat attri
 s32 VertexLoaderARM64::GetAddressImm(CPArray array, VertexComponentFormat attribute,
                                      Arm64Gen::ARM64Reg reg, u32 align)
 {
-  if (IsIndexed(attribute) || (m_src_ofs > 255 && (m_src_ofs & (align - 1))))
+  if (IsIndexed(attribute) ||
+      (!IsValidUnscaledImmediateOffset(m_src_ofs) && !(IsValidImmediateOffset(m_src_ofs, align))))
+  {
     GetVertexAddr(array, attribute, reg);
+    return -1;
+  }
   else
+  {
     return m_src_ofs;
-  return -1;
+  }
 }
 
 int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentFormat format,
@@ -145,8 +164,9 @@ int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentForm
     else
       m_float_emit.LD1(elem_size_bits, 1, coords, EncodeRegTo64(scratch1_reg));
   }
-  else if (offset & (load_size_bytes - 1))  // Not aligned - unscaled
+  else if (!IsValidImmediateOffset(offset, load_size_bytes))  // Not aligned - use unscaled
   {
+    ASSERT(IsValidUnscaledImmediateOffset(offset));
     m_float_emit.LDUR(load_size_bits, coords, src_reg, offset);
   }
   else
@@ -190,15 +210,16 @@ int VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentForm
     m_float_emit.REV32(8, coords, coords);
   }
 
-  const u32 write_size = count_out == 3 ? 128 : count_out * 32;
-  const u32 mask = count_out == 3 ? 0xF : count_out == 2 ? 0x7 : 0x3;
-  if (m_dst_ofs < 256)
+  // In particular, this rounds up count_out = 3 to 4 (16 bytes)
+  const u32 write_size_bytes = GetLoadSize(count_out * sizeof(u32));
+  const u32 write_size_bits = write_size_bytes * 8;
+  if (IsValidUnscaledImmediateOffset(m_dst_ofs))
   {
-    m_float_emit.STUR(write_size, coords, dst_reg, m_dst_ofs);
+    m_float_emit.STUR(write_size_bits, coords, dst_reg, m_dst_ofs);
   }
-  else if (!(m_dst_ofs & mask))
+  else if (IsValidImmediateOffset(m_dst_ofs, write_size_bytes))
   {
-    m_float_emit.STR(write_size, IndexType::Unsigned, coords, dst_reg, m_dst_ofs);
+    m_float_emit.STR(write_size_bits, IndexType::Unsigned, coords, dst_reg, m_dst_ofs);
   }
   else
   {
@@ -253,7 +274,7 @@ void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat f
   case ColorFormat::RGBA8888:
     if (offset == -1)
       LDR(IndexType::Unsigned, scratch2_reg, EncodeRegTo64(scratch1_reg), 0);
-    else if (offset & 3)  // Not aligned - unscaled
+    else if (!IsValidImmediateOffset(offset, 4))  // Not aligned - unscaled
       LDUR(scratch2_reg, src_reg, offset);
     else
       LDR(IndexType::Unsigned, scratch2_reg, src_reg, offset);
@@ -269,7 +290,7 @@ void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat f
     // AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
     if (offset == -1)
       LDRH(IndexType::Unsigned, scratch3_reg, EncodeRegTo64(scratch1_reg), 0);
-    else if (offset & 1)  // Not aligned - unscaled
+    else if (!IsValidImmediateOffset(offset, 2))  // Not aligned - unscaled
       LDURH(scratch3_reg, src_reg, offset);
     else
       LDRH(IndexType::Unsigned, scratch3_reg, src_reg, offset);
@@ -306,7 +327,7 @@ void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat f
     // AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
     if (offset == -1)
       LDRH(IndexType::Unsigned, scratch3_reg, EncodeRegTo64(scratch1_reg), 0);
-    else if (offset & 1)  // Not aligned - unscaled
+    else if (!IsValidImmediateOffset(offset, 2))  // Not aligned - unscaled
       LDURH(scratch3_reg, src_reg, offset);
     else
       LDRH(IndexType::Unsigned, scratch3_reg, src_reg, offset);
@@ -343,7 +364,7 @@ void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat f
     else
     {
       offset -= 1;
-      if (offset & 3)  // Not aligned - unscaled
+      if (!IsValidImmediateOffset(offset, 4))  // Not aligned - unscaled
         LDUR(scratch3_reg, src_reg, offset);
       else
         LDR(IndexType::Unsigned, scratch3_reg, src_reg, offset);
@@ -567,15 +588,16 @@ void VertexLoaderARM64::GenerateVertexLoader()
       {
         m_native_vtx_decl.texcoords[i].offset = m_dst_ofs;
 
-        if (m_dst_ofs < 256)
+        if (IsValidUnscaledImmediateOffset(m_dst_ofs))
         {
           STUR(ARM64Reg::SP, dst_reg, m_dst_ofs);
         }
-        else if (!(m_dst_ofs & 7))
+        else if (!IsValidImmediateOffset(m_dst_ofs, 8))
         {
           // If m_dst_ofs isn't 8byte aligned we can't store an 8byte zero register
           // So store two 4byte zero registers
           // The destination is always 4byte aligned
+          ASSERT(IsValidImmediateOffset(m_dst_ofs, 4));
           STR(IndexType::Unsigned, ARM64Reg::WSP, dst_reg, m_dst_ofs);
           STR(IndexType::Unsigned, ARM64Reg::WSP, dst_reg, m_dst_ofs + 4);
         }

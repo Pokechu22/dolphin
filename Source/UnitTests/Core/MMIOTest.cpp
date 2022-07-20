@@ -8,6 +8,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
+#include "Core/HW/GPFifo.h"
 #include "Core/HW/MMIO.h"
 #include "UICommon/UICommon.h"
 
@@ -40,7 +41,7 @@ TEST(IsMMIOAddress, SpecialAddresses)
   SConfig::GetInstance().bWii = true;
 
   // WG Pipe address, should not be handled by MMIO.
-  EXPECT_FALSE(MMIO::IsMMIOAddress(0x0C008000));
+  EXPECT_FALSE(MMIO::IsMMIOAddress(GPFifo::GATHER_PIPE_PHYSICAL_ADDRESS));
 
   // Locked L1 cache allocation.
   EXPECT_FALSE(MMIO::IsMMIOAddress(0xE0000000));

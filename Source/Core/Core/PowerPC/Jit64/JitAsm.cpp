@@ -255,7 +255,7 @@ void Jit64AsmRoutineManager::GenerateCommon()
   // Even in x86, the param values will be in the right registers.
   /*
   const u8 *fastMemWrite8 = AlignCode16();
-  CMP(32, R(ABI_PARAM2), Imm32(0xCC008000));
+  CMP(32, R(ABI_PARAM2), Imm32(GPFifo::GATHER_PIPE_PHYSICAL_ADDRESS));
   FixupBranch skip_fast_write = J_CC(CC_NE, false);
   MOV(32, RSCRATCH, M(&m_gatherPipeCount));
   MOV(8, MDisp(RSCRATCH, (u32)&m_gatherPipe), ABI_PARAM1);

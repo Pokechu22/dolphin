@@ -13,6 +13,7 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/DVD/DVDInterface.h"
+#include "Core/HW/GPFifo.h"
 #include "Core/HW/MMIO.h"
 #include "Core/HW/SystemTimers.h"
 #include "Core/IOS/IOS.h"
@@ -118,6 +119,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                    CommandProcessor::DumpFifo("Reset");
                    if ((val & 1) != 0)
                    {
+                     GPFifo::ResetGatherPipe();
                      Fifo::ResetVideoBuffer();
                      CommandProcessor::DumpFifo("Reset after");
                    }

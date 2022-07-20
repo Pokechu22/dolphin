@@ -119,24 +119,28 @@ void CheckGatherPipe()
 void Write8(const u8 value)
 {
   FastWrite8(value);
+  CommandProcessor::DumpFifo(fmt::format("Write8 {:02x}", value));
   CheckGatherPipe();
 }
 
 void Write16(const u16 value)
 {
   FastWrite16(value);
+  CommandProcessor::DumpFifo(fmt::format("Write16 {:04x}", value));
   CheckGatherPipe();
 }
 
 void Write32(const u32 value)
 {
   FastWrite32(value);
+  CommandProcessor::DumpFifo(fmt::format("Write32 {:08x}", value));
   CheckGatherPipe();
 }
 
 void Write64(const u64 value)
 {
   FastWrite64(value);
+  CommandProcessor::DumpFifo(fmt::format("Write64 {:016x}", value));
   CheckGatherPipe();
 }
 

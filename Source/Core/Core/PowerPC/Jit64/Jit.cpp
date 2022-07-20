@@ -333,7 +333,7 @@ void Jit64::Init()
   EnableBlockLink();
 
   jo.fastmem_arena = m_fastmem_enabled && Memory::InitFastmemArena();
-  jo.optimizeGatherPipe = true;
+  //jo.optimizeGatherPipe = true;
   jo.accurateSinglePrecision = true;
   UpdateMemoryAndExceptionOptions();
   js.fastmemLoadStore = nullptr;

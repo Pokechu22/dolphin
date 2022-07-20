@@ -58,6 +58,10 @@ void DumpFifo(std::string_view context)
                write_ptr_addr - read_ptr_addr, write_ptr - read_ptr);
   WARN_LOG_FMT(COMMANDPROCESSOR, "Buffer: {:02x}",
                fmt::join(read_ptr, std::min(read_ptr + 0x100, write_ptr), " "));
+  WARN_LOG_FMT(
+      COMMANDPROCESSOR, "GP fifo: size {:x}, contents {:02x}",
+      PowerPC::ppcState.gather_pipe_ptr - PowerPC::ppcState.gather_pipe_base_ptr,
+      fmt::join(PowerPC::ppcState.gather_pipe_base_ptr, PowerPC::ppcState.gather_pipe_ptr, " "));
   WARN_LOG_FMT(COMMANDPROCESSOR, "PC: {:08x}, LR: {:08x}", PC, LR);
   WARN_LOG_FMT(COMMANDPROCESSOR, "Control: GPREAD {} | BP {} | Int {} | OvF {} | UndF {} | LINK {}",
                fifo.bFF_GPReadEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",

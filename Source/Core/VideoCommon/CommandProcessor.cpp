@@ -14,6 +14,7 @@
 #include "Common/Logging/Log.h"
 #include "Core/ConfigManager.h"
 #include "Core/CoreTiming.h"
+#include "Core/Debugger/Debugger_SymbolMap.h"
 #include "Core/HW/GPFifo.h"
 #include "Core/HW/MMIO.h"
 #include "Core/HW/ProcessorInterface.h"
@@ -46,30 +47,41 @@ static bool s_is_fifo_error_seen = false;
 
 void DumpFifo(std::string_view context)
 {
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Dumping fifo information: {}", context);
+  std::string message = fmt::format("Dumping fifo information: {}\n", context);
+  const u8* const base_ptr = Fifo::GetBasePtr();
   const u8* const read_ptr = Fifo::GetReadPtr();
+  const u32 read_ptr_x = u32(read_ptr - base_ptr);
   const u32 read_ptr_addr = fifo.CPReadPointer.load(std::memory_order_relaxed);
   const u8* const write_ptr = Fifo::GetWritePtr();
+  const u32 write_ptr_x = u32(write_ptr - base_ptr);
   const u32 write_ptr_addr = fifo.CPWritePointer.load(std::memory_order_relaxed);
   const u32 dist = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Read pointer: {:08x} / {}", read_ptr_addr, fmt::ptr(read_ptr));
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Write pointer: {:08x} / {}", write_ptr_addr, fmt::ptr(write_ptr));
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Distance: {:x} / {:x} / {:x}", dist,
-               write_ptr_addr - read_ptr_addr, write_ptr - read_ptr);
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Buffer: {:02x}",
-               fmt::join(read_ptr, std::min(read_ptr + 0x100, write_ptr), " "));
-  WARN_LOG_FMT(
-      COMMANDPROCESSOR, "GP fifo: size {:x}, contents {:02x}",
+  message += fmt::format("Read pointer: {:08x} / {:x}\n", read_ptr_addr, read_ptr_x);
+  message += fmt::format("Write pointer: {:08x} / {:x}\n", write_ptr_addr, write_ptr_x);
+  message += fmt::format("Distance: {:x} / {:x} / {:x}\n", dist, write_ptr_addr - read_ptr_addr,
+                         write_ptr_x - read_ptr_x);
+  message += fmt::format("Buffer: {:02x}\n",
+                         fmt::join(read_ptr, std::min(read_ptr + 0x100, write_ptr), " "));
+  message += fmt::format(
+      "GP fifo: size {:x}, contents {:02x}\n",
       PowerPC::ppcState.gather_pipe_ptr - PowerPC::ppcState.gather_pipe_base_ptr,
       fmt::join(PowerPC::ppcState.gather_pipe_base_ptr, PowerPC::ppcState.gather_pipe_ptr, " "));
-  WARN_LOG_FMT(COMMANDPROCESSOR, "PC: {:08x}, LR: {:08x}", PC, LR);
-  WARN_LOG_FMT(COMMANDPROCESSOR, "Control: GPREAD {} | BP {} | Int {} | OvF {} | UndF {} | LINK {}",
-               fifo.bFF_GPReadEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
-               fifo.bFF_BPEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
-               fifo.bFF_BPInt.load(std::memory_order_relaxed) ? "ON" : "OFF",
-               m_CPCtrlReg.FifoOverflowIntEnable ? "ON" : "OFF",
-               m_CPCtrlReg.FifoUnderflowIntEnable ? "ON" : "OFF",
-               m_CPCtrlReg.GPLinkEnable ? "ON" : "OFF");
+  std::vector<Dolphin_Debugger::CallstackEntry> stack;
+  if (Dolphin_Debugger::GetCallstack(stack))
+  {
+    for (auto& e : stack)
+    {
+      message += e.Name;  // includes \n
+    }
+  }
+  message += fmt::format("Control: GPREAD {} | BP {} | Int {} | OvF {} | UndF {} | LINK {}",
+                         fifo.bFF_GPReadEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
+                         fifo.bFF_BPEnable.load(std::memory_order_relaxed) ? "ON" : "OFF",
+                         fifo.bFF_BPInt.load(std::memory_order_relaxed) ? "ON" : "OFF",
+                         m_CPCtrlReg.FifoOverflowIntEnable ? "ON" : "OFF",
+                         m_CPCtrlReg.FifoUnderflowIntEnable ? "ON" : "OFF",
+                         m_CPCtrlReg.GPLinkEnable ? "ON" : "OFF");
+  WARN_LOG_FMT(COMMANDPROCESSOR, "{}", message);
 }
 
 static inline void WriteLow(std::atomic<u32>& reg, u16 lowbits)

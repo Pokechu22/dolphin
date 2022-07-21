@@ -629,6 +629,10 @@ void Prepare()
   s_syncing_suspended = true;
 }
 
+u8* GetBasePtr()
+{
+  return s_video_buffer;
+}
 u8* GetReadPtr()
 {
   return s_video_buffer_read_ptr;

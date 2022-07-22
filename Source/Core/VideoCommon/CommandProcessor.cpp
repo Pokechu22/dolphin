@@ -441,6 +441,7 @@ void GatherPipeBursted()
       }
     }
     Fifo::RunGpu();
+    DumpFifo("Gather pipe bursted - not linked");
     return;
   }
 
@@ -487,6 +488,8 @@ void GatherPipeBursted()
   ASSERT_MSG(COMMANDPROCESSOR,
              fifo.CPEnd.load(std::memory_order_relaxed) == ProcessorInterface::Fifo_CPUEnd,
              "FIFOs linked but out of sync");
+
+  DumpFifo("Gather pipe bursted - linked");
 }
 
 void UpdateInterrupts(u64 userdata)

@@ -467,6 +467,7 @@ void RunGpu()
 
 static int RunGpuOnCpu(int ticks)
 {
+  CommandProcessor::DumpFifo(fmt::format("RunGpuOnCpu({}) start", ticks));
   CommandProcessor::SCPFifoStruct& fifo = CommandProcessor::fifo;
   bool reset_simd_state = false;
   int available_ticks = int(ticks * s_config_sync_gpu_overclock) + s_sync_ticks.load();
@@ -517,6 +518,8 @@ static int RunGpuOnCpu(int ticks)
 
   // Discard all available ticks as there is nothing to do any more.
   s_sync_ticks.store(std::min(available_ticks, 0));
+
+  CommandProcessor::DumpFifo(fmt::format("RunGpuOnCpu end: {}", available_ticks));
 
   // If the GPU is idle, drop the handler.
   if (available_ticks >= 0)

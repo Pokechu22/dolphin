@@ -19,6 +19,7 @@
 #include "Core/HW/MMIO.h"
 #include "Core/HW/Memmap.h"
 #include "Core/HW/ProcessorInterface.h"
+#include "Core/PowerPC/PPCSymbolDB.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
 #include "VideoCommon/Fifo.h"
@@ -81,6 +82,7 @@ void DumpFifo(std::string_view context)
   std::vector<Dolphin_Debugger::CallstackEntry> stack;
   if (Dolphin_Debugger::GetCallstack(stack))
   {
+    message += fmt::format(" * {} [ PC = {:08x} ]\n", g_symbolDB.GetDescription(PC), PC);
     for (auto& e : stack)
     {
       message += e.Name;  // includes \n

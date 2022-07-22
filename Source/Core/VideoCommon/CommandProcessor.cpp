@@ -48,31 +48,37 @@ static bool s_is_fifo_error_seen = false;
 
 void DumpFifo(std::string_view context)
 {
-  std::string message = fmt::format("Dumping fifo information: {}\n", context);
-  const u8* const base_ptr = Fifo::GetBasePtr();
-  const u8* const read_ptr = Fifo::GetReadPtr();
-  const u32 read_ptr_x = u32(read_ptr - base_ptr);
-  const u32 read_ptr_addr = fifo.CPReadPointer.load(std::memory_order_relaxed);
-  const u8* const write_ptr = Fifo::GetWritePtr();
-  const u32 write_ptr_x = u32(write_ptr - base_ptr);
-  const u32 write_ptr_addr = fifo.CPWritePointer.load(std::memory_order_relaxed);
-  const u32 dist = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
-  const u32 dist_alt = write_ptr_addr >= read_ptr_addr ? write_ptr_addr - read_ptr_addr : 0;
-  const u32 dist_x = write_ptr_x - read_ptr_x;
+  const u32 cp_read_addr = fifo.CPReadPointer.load(std::memory_order_relaxed);
+  const u32 cp_write_addr = fifo.CPWritePointer.load(std::memory_order_relaxed);
+  const u32 cp_dist_var = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
+  const u32 cp_dist_actual = cp_write_addr >= cp_read_addr ? cp_write_addr - cp_read_addr : 0;
   // 1u because GetPointerForRange subtracts 1, and if read_ptr_addr that means it tries the range
   // 0-0xffffffff which fails
-  const u8* const buffer_start = Memory::GetPointerForRange(read_ptr_addr, std::max(1u, dist_alt));
-  const u8* const buffer_end = buffer_start + std::min(0x100u, dist_alt);
-  const u8* const alt_buffer_end = read_ptr + std::min(0x100u, dist_x);
-  message += fmt::format("Read pointer: {:08x} / {:x}\n", read_ptr_addr, read_ptr_x);
-  message += fmt::format("Write pointer: {:08x} / {:x}\n", write_ptr_addr, write_ptr_x);
-  message += fmt::format("Distance: {:x} / {:x} / {:x}\n", dist, dist_alt, dist_x);
-  message += fmt::format("Buffer: {:02x}\n", fmt::join(buffer_start, buffer_end, " "));
-  message += fmt::format("GPU buffer: {:02x}\n", fmt::join(read_ptr, alt_buffer_end, " "));
-  message += fmt::format(
-      "GP fifo: size {:x}, contents {:02x}\n",
-      PowerPC::ppcState.gather_pipe_ptr - PowerPC::ppcState.gather_pipe_base_ptr,
-      fmt::join(PowerPC::ppcState.gather_pipe_base_ptr, PowerPC::ppcState.gather_pipe_ptr, " "));
+  const u8* const cp_buffer_start =
+      Memory::GetPointerForRange(cp_read_addr, std::max(1u, cp_dist_actual));
+  const u8* const cp_buffer_end = cp_buffer_start + std::min(0x100u, cp_dist_actual);
+
+  const u8* const video_base_ptr = Fifo::GetBasePtr();
+  const u8* const video_read_ptr = Fifo::GetReadPtr();
+  const u32 video_read_offset = u32(video_read_ptr - video_base_ptr);
+  const u8* const video_write_ptr = Fifo::GetWritePtr();
+  const u32 video_write_offset = u32(video_write_ptr - video_base_ptr);
+  const u32 video_dist_actual = video_write_offset - video_read_offset;
+  const u8* video_buffer_end = video_read_ptr + std::min(0x100u, video_dist_actual);
+
+  const u8* const gp_start = PowerPC::ppcState.gather_pipe_base_ptr;
+  const u8* const gp_end = PowerPC::ppcState.gather_pipe_ptr;
+  const u32 gp_dist = u32(gp_end - gp_start);
+
+  std::string message = fmt::format("Dumping fifo information: {}\n", context);
+  message += fmt::format("Read pointer: {:08x} / {:x}\n", cp_read_addr, video_read_offset);
+  message += fmt::format("Write pointer: {:08x} / {:x}\n", cp_write_addr, video_write_offset);
+  message +=
+      fmt::format("Distance: {:x} / {:x} / {:x}\n", cp_dist_var, cp_dist_actual, video_dist_actual);
+  message += fmt::format("Buffer: {:02x}\n", fmt::join(cp_buffer_start, cp_buffer_end, " "));
+  message += fmt::format("GPU buffer: {:02x}\n", fmt::join(video_read_ptr, video_buffer_end, " "));
+  message += fmt::format("GP fifo: size {:x}, contents {:02x}\n", gp_dist,
+                         fmt::join(gp_start, gp_end, " "));
   std::vector<Dolphin_Debugger::CallstackEntry> stack;
   if (Dolphin_Debugger::GetCallstack(stack))
   {

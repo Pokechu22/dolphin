@@ -12,6 +12,7 @@
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 #include "Core/PowerPC/MMU.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "VideoCommon/CommandProcessor.h"
 
 /*
 
@@ -238,6 +239,7 @@ void Interpreter::mfspr(UGeckoInstruction inst)
 
   case SPR_WPAR:
   {
+    u32 old = rSPR(index);
     // TODO: If wpar_empty ever is false, Paper Mario hangs. Strange.
     // Maybe WPAR is automatically flushed after a certain amount of time?
     bool wpar_empty = true;  // GPFifo::IsEmpty();
@@ -245,6 +247,7 @@ void Interpreter::mfspr(UGeckoInstruction inst)
       rSPR(index) |= 1;  // BNE = buffer not empty
     else
       rSPR(index) &= ~1;
+    CommandProcessor::DumpFifo(fmt::format("Read WPAR {:08x} -> {:08x}", old, rSPR(index)));
   }
   break;
   case SPR_XER:
@@ -341,9 +344,13 @@ void Interpreter::mtspr(UGeckoInstruction inst)
     break;
 
   case SPR_WPAR:
+    CommandProcessor::DumpFifo(
+        fmt::format("Write WPAR before {:08x} -> {:08x}", old_value, rSPR(index)));
     ASSERT_MSG(POWERPC, rSPR(SPR_WPAR) == GPFifo::GATHER_PIPE_PHYSICAL_ADDRESS,
                "Gather pipe changed to unexpected address {:08x} @ PC {:08x}", rSPR(SPR_WPAR), PC);
     GPFifo::ResetGatherPipe();
+    CommandProcessor::DumpFifo(
+        fmt::format("Write WPAR after {:08x} -> {:08x}", old_value, rSPR(index)));
     break;
 
   // Graphics Quantization Registers

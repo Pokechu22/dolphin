@@ -17,6 +17,7 @@
 #include "Core/Debugger/Debugger_SymbolMap.h"
 #include "Core/HW/GPFifo.h"
 #include "Core/HW/MMIO.h"
+#include "Core/HW/Memmap.h"
 #include "Core/HW/ProcessorInterface.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
@@ -56,12 +57,18 @@ void DumpFifo(std::string_view context)
   const u32 write_ptr_x = u32(write_ptr - base_ptr);
   const u32 write_ptr_addr = fifo.CPWritePointer.load(std::memory_order_relaxed);
   const u32 dist = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
+  const u32 dist_alt = write_ptr_addr >= read_ptr_addr ? write_ptr_addr - read_ptr_addr : 0;
+  const u32 dist_x = write_ptr_x - read_ptr_x;
+  // 1u because GetPointerForRange subtracts 1, and if read_ptr_addr that means it tries the range
+  // 0-0xffffffff which fails
+  const u8* const buffer_start = Memory::GetPointerForRange(read_ptr_addr, std::max(1u, dist_alt));
+  const u8* const buffer_end = buffer_start + std::min(0x100u, dist_x);
+  const u8* const alt_buffer_end = read_ptr + std::min(0x100u, dist_x);
   message += fmt::format("Read pointer: {:08x} / {:x}\n", read_ptr_addr, read_ptr_x);
   message += fmt::format("Write pointer: {:08x} / {:x}\n", write_ptr_addr, write_ptr_x);
-  message += fmt::format("Distance: {:x} / {:x} / {:x}\n", dist, write_ptr_addr - read_ptr_addr,
-                         write_ptr_x - read_ptr_x);
-  message += fmt::format("Buffer: {:02x}\n",
-                         fmt::join(read_ptr, std::min(read_ptr + 0x100, write_ptr), " "));
+  message += fmt::format("Distance: {:x} / {:x} / {:x}\n", dist, dist_alt, dist_x);
+  message += fmt::format("Buffer: {:02x}\n", fmt::join(buffer_start, buffer_end, " "));
+  message += fmt::format("GPU buffer: {:02x}\n", fmt::join(read_ptr, alt_buffer_end, " "));
   message += fmt::format(
       "GP fifo: size {:x}, contents {:02x}\n",
       PowerPC::ppcState.gather_pipe_ptr - PowerPC::ppcState.gather_pipe_base_ptr,

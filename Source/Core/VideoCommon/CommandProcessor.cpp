@@ -62,7 +62,7 @@ void DumpFifo(std::string_view context)
   // 1u because GetPointerForRange subtracts 1, and if read_ptr_addr that means it tries the range
   // 0-0xffffffff which fails
   const u8* const buffer_start = Memory::GetPointerForRange(read_ptr_addr, std::max(1u, dist_alt));
-  const u8* const buffer_end = buffer_start + std::min(0x100u, dist_x);
+  const u8* const buffer_end = buffer_start + std::min(0x100u, dist_alt);
   const u8* const alt_buffer_end = read_ptr + std::min(0x100u, dist_x);
   message += fmt::format("Read pointer: {:08x} / {:x}\n", read_ptr_addr, read_ptr_x);
   message += fmt::format("Write pointer: {:08x} / {:x}\n", write_ptr_addr, write_ptr_x);

@@ -64,21 +64,20 @@ void DumpFifo(std::string_view context)
   const u8* const video_write_ptr = Fifo::GetWritePtr();
   const u32 video_write_offset = u32(video_write_ptr - video_base_ptr);
   const u32 video_dist_actual = video_write_offset - video_read_offset;
-  const u8* video_buffer_end = video_read_ptr + std::min(0x100u, video_dist_actual);
+  const u8* const video_buffer_end = video_read_ptr + std::min(0x100u, video_dist_actual);
 
   const u8* const gp_start = PowerPC::ppcState.gather_pipe_base_ptr;
   const u8* const gp_end = PowerPC::ppcState.gather_pipe_ptr;
   const u32 gp_dist = u32(gp_end - gp_start);
 
   std::string message = fmt::format("Dumping fifo information: {}\n", context);
-  message += fmt::format("Read pointer: {:08x} / {:x}\n", cp_read_addr, video_read_offset);
-  message += fmt::format("Write pointer: {:08x} / {:x}\n", cp_write_addr, video_write_offset);
-  message +=
-      fmt::format("Distance: {:x} / {:x} / {:x}\n", cp_dist_var, cp_dist_actual, video_dist_actual);
-  message += fmt::format("Buffer: {:02x}\n", fmt::join(cp_buffer_start, cp_buffer_end, " "));
-  message += fmt::format("GPU buffer: {:02x}\n", fmt::join(video_read_ptr, video_buffer_end, " "));
-  message += fmt::format("GP fifo: size {:x}, contents {:02x}\n", gp_dist,
-                         fmt::join(gp_start, gp_end, " "));
+  message += fmt::format("CP: Read {:08x} Write {:08x} Dist {:08x}/{:08x} (should be equal)\n",
+                         cp_read_addr, cp_write_addr, cp_dist_var, cp_dist_actual);
+  message += fmt::format("{:02x}\n", fmt::join(cp_buffer_start, cp_buffer_end, " "));
+  message += fmt::format("GP fifo: Size {:x}\n{:02x}\n", gp_dist, fmt::join(gp_start, gp_end, " "));
+  message += fmt::format("Video: Read {:08x} Write {:08x} Dist {:08x} (computed)\n",
+                         video_read_offset, video_write_offset, video_dist_actual);
+  message += fmt::format("{:02x}\n", fmt::join(video_read_ptr, video_buffer_end, " "));
   std::vector<Dolphin_Debugger::CallstackEntry> stack;
   if (Dolphin_Debugger::GetCallstack(stack))
   {

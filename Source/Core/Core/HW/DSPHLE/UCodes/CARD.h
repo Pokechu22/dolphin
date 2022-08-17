@@ -20,7 +20,6 @@ public:
   void Update() override;
   void DoState(PointerWrap& p) override;
 
-private:
   // The addresses listed here are written by the card uCode and read by the DSP ROM
   struct CardUcodeParameters
   {
@@ -42,6 +41,7 @@ private:
     u16 work_0411;
   };
 
+private:
   enum class State
   {
     WaitingForRequest,

@@ -95,10 +95,11 @@ enum class OpType
 
 struct GekkoOPInfo
 {
-  const char* opname;
-  OpType type;
-  u64 flags;
-  int numCycles;
+  const char* const opname;
+  const OpType type;
+  const u64 flags;
+  const int numCycles;
+  // NOTE: these are mutated
   u64 runCount;
   int compileCount;
   u32 lastUse;

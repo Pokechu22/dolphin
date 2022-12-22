@@ -21,6 +21,8 @@
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 #include "Core/PowerPC/PowerPC.h"
 
+namespace PPCTables
+{
 std::array<GekkoOPInfo*, 64> m_infoTable;
 std::array<GekkoOPInfo*, 1024> m_infoTable4;
 std::array<GekkoOPInfo*, 1024> m_infoTable19;
@@ -31,8 +33,6 @@ std::array<GekkoOPInfo*, 1024> m_infoTable63;
 std::array<GekkoOPInfo*, 512> m_allInstructions;
 size_t m_numInstructions;
 
-namespace PPCTables
-{
 GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
 {
   const GekkoOPInfo* info = m_infoTable[inst.OPCD];

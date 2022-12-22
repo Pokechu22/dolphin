@@ -103,6 +103,9 @@ struct GekkoOPInfo
   int compileCount;
   u32 lastUse;
 };
+
+namespace PPCTables
+{
 extern std::array<GekkoOPInfo*, 64> m_infoTable;
 extern std::array<GekkoOPInfo*, 1024> m_infoTable4;
 extern std::array<GekkoOPInfo*, 1024> m_infoTable19;
@@ -113,8 +116,6 @@ extern std::array<GekkoOPInfo*, 1024> m_infoTable63;
 extern std::array<GekkoOPInfo*, 512> m_allInstructions;
 extern size_t m_numInstructions;
 
-namespace PPCTables
-{
 GekkoOPInfo* GetOpInfo(UGeckoInstruction inst);
 Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst);
 

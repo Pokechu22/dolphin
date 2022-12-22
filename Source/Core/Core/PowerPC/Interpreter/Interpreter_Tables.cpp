@@ -363,7 +363,7 @@ constexpr size_t TotalInstructionFunctionCount()
          table19.size() + table59.size() + table63.size() + table63_2.size();
 }
 
-static_assert(TotalInstructionFunctionCount() < m_allInstructions.size(),
+static_assert(TotalInstructionFunctionCount() < PPCTables::m_allInstructions.size(),
               "m_allInstructions is too small");
 
 void Interpreter::InitializeInstructionTables()
@@ -377,13 +377,13 @@ void Interpreter::InitializeInstructionTables()
   for (int i = 0; i < 64; i++)
   {
     m_op_table[i] = Interpreter::unknown_instruction;
-    m_infoTable[i] = &unknownopinfo;
+    PPCTables::m_infoTable[i] = &unknownopinfo;
   }
 
   for (int i = 0; i < 32; i++)
   {
     m_op_table59[i] = Interpreter::unknown_instruction;
-    m_infoTable59[i] = &unknownopinfo;
+    PPCTables::m_infoTable59[i] = &unknownopinfo;
   }
 
   for (int i = 0; i < 1024; i++)
@@ -392,16 +392,16 @@ void Interpreter::InitializeInstructionTables()
     m_op_table19[i] = Interpreter::unknown_instruction;
     m_op_table31[i] = Interpreter::unknown_instruction;
     m_op_table63[i] = Interpreter::unknown_instruction;
-    m_infoTable4[i] = &unknownopinfo;
-    m_infoTable19[i] = &unknownopinfo;
-    m_infoTable31[i] = &unknownopinfo;
-    m_infoTable63[i] = &unknownopinfo;
+    PPCTables::m_infoTable4[i] = &unknownopinfo;
+    PPCTables::m_infoTable19[i] = &unknownopinfo;
+    PPCTables::m_infoTable31[i] = &unknownopinfo;
+    PPCTables::m_infoTable63[i] = &unknownopinfo;
   }
 
   for (auto& tpl : primarytable)
   {
     m_op_table[tpl.opcode] = tpl.Inst;
-    m_infoTable[tpl.opcode] = &tpl.opinfo;
+    PPCTables::m_infoTable[tpl.opcode] = &tpl.opinfo;
   }
 
   for (int i = 0; i < 32; i++)
@@ -411,7 +411,7 @@ void Interpreter::InitializeInstructionTables()
     {
       int op = fill + tpl.opcode;
       m_op_table4[op] = tpl.Inst;
-      m_infoTable4[op] = &tpl.opinfo;
+      PPCTables::m_infoTable4[op] = &tpl.opinfo;
     }
   }
 
@@ -422,7 +422,7 @@ void Interpreter::InitializeInstructionTables()
     {
       int op = fill + tpl.opcode;
       m_op_table4[op] = tpl.Inst;
-      m_infoTable4[op] = &tpl.opinfo;
+      PPCTables::m_infoTable4[op] = &tpl.opinfo;
     }
   }
 
@@ -430,35 +430,35 @@ void Interpreter::InitializeInstructionTables()
   {
     int op = tpl.opcode;
     m_op_table4[op] = tpl.Inst;
-    m_infoTable4[op] = &tpl.opinfo;
+    PPCTables::m_infoTable4[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : table31)
   {
     int op = tpl.opcode;
     m_op_table31[op] = tpl.Inst;
-    m_infoTable31[op] = &tpl.opinfo;
+    PPCTables::m_infoTable31[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : table19)
   {
     int op = tpl.opcode;
     m_op_table19[op] = tpl.Inst;
-    m_infoTable19[op] = &tpl.opinfo;
+    PPCTables::m_infoTable19[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : table59)
   {
     int op = tpl.opcode;
     m_op_table59[op] = tpl.Inst;
-    m_infoTable59[op] = &tpl.opinfo;
+    PPCTables::m_infoTable59[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : table63)
   {
     int op = tpl.opcode;
     m_op_table63[op] = tpl.Inst;
-    m_infoTable63[op] = &tpl.opinfo;
+    PPCTables::m_infoTable63[op] = &tpl.opinfo;
   }
 
   for (int i = 0; i < 32; i++)
@@ -468,29 +468,29 @@ void Interpreter::InitializeInstructionTables()
     {
       int op = fill + tpl.opcode;
       m_op_table63[op] = tpl.Inst;
-      m_infoTable63[op] = &tpl.opinfo;
+      PPCTables::m_infoTable63[op] = &tpl.opinfo;
     }
   }
 
-  m_numInstructions = 0;
+  PPCTables::m_numInstructions = 0;
   for (auto& tpl : primarytable)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table4_2)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table4_3)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table4)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table31)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table19)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table59)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table63)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
   for (auto& tpl : table63_2)
-    m_allInstructions[m_numInstructions++] = &tpl.opinfo;
+    PPCTables::m_allInstructions[PPCTables::m_numInstructions++] = &tpl.opinfo;
 
   initialized = true;
 }

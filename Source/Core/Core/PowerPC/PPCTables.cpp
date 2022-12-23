@@ -495,13 +495,13 @@ constexpr size_t TOTAL_INSTRUCTION_COUNT =
 struct Tables
 {
   std::array<GekkoOPInfo, TOTAL_INSTRUCTION_COUNT> all_instructions{};
-  GekkoOPInfo* unknown_op_info;
-  std::array<GekkoOPInfo*, 64> primary_table{};
-  std::array<GekkoOPInfo*, 1024> table4{};
-  std::array<GekkoOPInfo*, 1024> table19{};
-  std::array<GekkoOPInfo*, 1024> table31{};
-  std::array<GekkoOPInfo*, 32> table59{};
-  std::array<GekkoOPInfo*, 1024> table63{};
+  u32 unknown_op_info;
+  std::array<u32, 64> primary_table{};
+  std::array<u32, 1024> table4{};
+  std::array<u32, 1024> table19{};
+  std::array<u32, 1024> table31{};
+  std::array<u32, 32> table59{};
+  std::array<u32, 1024> table63{};
 };
 }  // namespace
 
@@ -515,7 +515,7 @@ constexpr Tables s_tables = []() consteval
   Tables tables{};
 
   u32 counter = 0;
-  auto make_info = [&](const GekkoOPTemplate& inst) consteval ->GekkoOPInfo*
+  auto make_info = [&](const GekkoOPTemplate& inst) consteval -> u32
   {
     ASSERT(counter < TOTAL_INSTRUCTION_COUNT);
     GekkoOPInfo* info = &tables.all_instructions[counter];
@@ -524,11 +524,10 @@ constexpr Tables s_tables = []() consteval
     info->type = inst.type;
     info->num_cycles = inst.num_cycles;
     info->stats = &s_all_instructions_stats[counter];
-    counter++;
-    return info;
+    return counter++;
   };
 
-  GekkoOPInfo* unknown_op_info = make_info(s_unknown_op_info);
+  u32 unknown_op_info = make_info(s_unknown_op_info);
   tables.unknown_op_info = unknown_op_info;
 
   tables.primary_table.fill(unknown_op_info);
@@ -542,7 +541,7 @@ constexpr Tables s_tables = []() consteval
 
   for (const auto& tpl : s_table4_2)
   {
-    auto* info = make_info(tpl);
+    u32 info = make_info(tpl);
     for (u32 i = 0; i < 32; i++)
     {
       const u32 fill = i << 5;
@@ -554,7 +553,7 @@ constexpr Tables s_tables = []() consteval
 
   for (const auto& tpl : s_table4_3)
   {
-    auto* info = make_info(tpl);
+    u32 info = make_info(tpl);
     for (u32 i = 0; i < 16; i++)
     {
       const u32 fill = i << 6;
@@ -601,7 +600,7 @@ constexpr Tables s_tables = []() consteval
 
   for (const auto& tpl : s_table63_2)
   {
-    auto* info = make_info(tpl);
+    u32 info = make_info(tpl);
     for (u32 i = 0; i < 32; i++)
     {
       const u32 fill = i << 5;
@@ -618,24 +617,24 @@ constexpr Tables s_tables = []() consteval
 
 const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
 {
-  const GekkoOPInfo* info = s_tables.primary_table[inst.OPCD];
+  const GekkoOPInfo* info = &s_tables.all_instructions[s_tables.primary_table[inst.OPCD]];
   if (info->type == OpType::Subtable)
   {
     switch (inst.OPCD)
     {
     case 4:
-      return s_tables.table4[inst.SUBOP10];
+      return &s_tables.all_instructions[s_tables.table4[inst.SUBOP10]];
     case 19:
-      return s_tables.table19[inst.SUBOP10];
+      return &s_tables.all_instructions[s_tables.table19[inst.SUBOP10]];
     case 31:
-      return s_tables.table31[inst.SUBOP10];
+      return &s_tables.all_instructions[s_tables.table31[inst.SUBOP10]];
     case 59:
-      return s_tables.table59[inst.SUBOP5];
+      return &s_tables.all_instructions[s_tables.table59[inst.SUBOP5]];
     case 63:
-      return s_tables.table63[inst.SUBOP10];
+      return &s_tables.all_instructions[s_tables.table63[inst.SUBOP10]];
     default:
       ASSERT_MSG(POWERPC, 0, "GetOpInfo - invalid subtable op {:08x} @ {:08x}", inst.hex, PC);
-      return s_tables.unknown_op_info;
+      return &s_tables.all_instructions[s_tables.unknown_op_info];
     }
   }
   else
@@ -643,7 +642,7 @@ const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
     if (info->type == OpType::Invalid)
     {
       ASSERT_MSG(POWERPC, 0, "GetOpInfo - invalid op {:08x} @ {:08x}", inst.hex, PC);
-      return s_tables.unknown_op_info;
+      return &s_tables.all_instructions[s_tables.unknown_op_info];
     }
     return info;
   }

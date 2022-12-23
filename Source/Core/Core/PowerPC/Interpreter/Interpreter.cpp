@@ -71,7 +71,6 @@ void UpdatePC()
 
 void Interpreter::Init()
 {
-  InitializeInstructionTables();
   m_end_block = false;
 }
 
@@ -117,7 +116,7 @@ int Interpreter::SingleStepInner()
   if (HandleFunctionHooking(PC))
   {
     UpdatePC();
-    return PPCTables::GetOpInfo(m_prev_inst)->numCycles;
+    return PPCTables::GetOpInfo(m_prev_inst)->num_cycles;
   }
 
   NPC = PC + sizeof(UGeckoInstruction);
@@ -143,7 +142,7 @@ int Interpreter::SingleStepInner()
     }
     else if (MSR.FP)
     {
-      PPCTables::GetInterpreterOp(m_prev_inst)(m_prev_inst);
+      RunInterpreterOp(m_prev_inst);
       if ((PowerPC::ppcState.Exceptions & EXCEPTION_DSI) != 0)
       {
         CheckExceptions();
@@ -159,7 +158,7 @@ int Interpreter::SingleStepInner()
       }
       else
       {
-        PPCTables::GetInterpreterOp(m_prev_inst)(m_prev_inst);
+        RunInterpreterOp(m_prev_inst);
         if ((PowerPC::ppcState.Exceptions & EXCEPTION_DSI) != 0)
         {
           CheckExceptions();
@@ -176,9 +175,9 @@ int Interpreter::SingleStepInner()
   UpdatePC();
 
   const GekkoOPInfo* opinfo = PPCTables::GetOpInfo(m_prev_inst);
-  PowerPC::UpdatePerformanceMonitor(opinfo->numCycles, (opinfo->flags & FL_LOADSTORE) != 0,
+  PowerPC::UpdatePerformanceMonitor(opinfo->num_cycles, (opinfo->flags & FL_LOADSTORE) != 0,
                                     (opinfo->flags & FL_USE_FPU) != 0);
-  return opinfo->numCycles;
+  return opinfo->num_cycles;
 }
 
 void Interpreter::SingleStep()

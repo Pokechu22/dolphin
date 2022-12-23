@@ -4,8 +4,8 @@
 #pragma once
 
 #include <array>
-#include <utility>
 #include <cstddef>
+#include <utility>
 
 #include "Common/CommonTypes.h"
 #include "Core/PowerPC/Gekko.h"
@@ -94,34 +94,26 @@ enum class OpType
   Unknown,
 };
 
+struct GekkoOPStats
+{
+  u64 run_count;
+  u32 compile_count;
+  u32 last_use;
+};
+
 struct GekkoOPInfo
 {
   const char* opname;
   OpType type;
+  u32 num_cycles;
   u64 flags;
-  int numCycles;
-};
-
-struct GekkoOPStats
-{
-  u64 runCount;
-  int compileCount;
-  u32 lastUse;
+  // Mutable
+  GekkoOPStats* stats;
 };
 
 namespace PPCTables
 {
-extern std::array<const GekkoOPInfo*, 64> m_infoTable;
-extern std::array<const GekkoOPInfo*, 1024> m_infoTable4;
-extern std::array<const GekkoOPInfo*, 1024> m_infoTable19;
-extern std::array<const GekkoOPInfo*, 1024> m_infoTable31;
-extern std::array<const GekkoOPInfo*, 32> m_infoTable59;
-extern std::array<const GekkoOPInfo*, 1024> m_infoTable63;
-
-extern std::array<std::pair<const GekkoOPInfo*, GekkoOPStats>, 512> m_allInstructions;
-
 const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst);
-Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst);
 
 bool IsValidInstruction(UGeckoInstruction inst);
 bool UsesFPU(UGeckoInstruction inst);

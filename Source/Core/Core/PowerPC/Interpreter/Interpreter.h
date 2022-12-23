@@ -263,6 +263,9 @@ public:
 
   using Instruction = void (*)(UGeckoInstruction inst);
 
+  static Instruction GetInterpreterOp(UGeckoInstruction inst);
+  static void RunInterpreterOp(UGeckoInstruction inst);
+
   // singleton
   static Interpreter* getInstance();
 
@@ -276,8 +279,6 @@ public:
 
 private:
   void CheckExceptions();
-
-  static void InitializeInstructionTables();
 
   static bool HandleFunctionHooking(u32 address);
 

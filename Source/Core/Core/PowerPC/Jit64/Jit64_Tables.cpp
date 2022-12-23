@@ -499,7 +499,7 @@ void Jit64::CompileInstruction(PPCAnalyst::CodeOp& op)
       rsplocations.push_back(js.compilerPC);
     }
 #endif
-    info->compileCount++;
-    info->lastUse = js.compilerPC;
+    info->stats->compile_count++;
+    info->stats->last_use = js.compilerPC;
   }
 }

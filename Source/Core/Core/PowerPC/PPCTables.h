@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <utility>
 #include <cstddef>
 
 #include "Common/CommonTypes.h"
@@ -99,6 +100,10 @@ struct GekkoOPInfo
   OpType type;
   u64 flags;
   int numCycles;
+};
+
+struct GekkoOPStats
+{
   u64 runCount;
   int compileCount;
   u32 lastUse;
@@ -106,17 +111,16 @@ struct GekkoOPInfo
 
 namespace PPCTables
 {
-extern std::array<GekkoOPInfo*, 64> m_infoTable;
-extern std::array<GekkoOPInfo*, 1024> m_infoTable4;
-extern std::array<GekkoOPInfo*, 1024> m_infoTable19;
-extern std::array<GekkoOPInfo*, 1024> m_infoTable31;
-extern std::array<GekkoOPInfo*, 32> m_infoTable59;
-extern std::array<GekkoOPInfo*, 1024> m_infoTable63;
+extern std::array<const GekkoOPInfo*, 64> m_infoTable;
+extern std::array<const GekkoOPInfo*, 1024> m_infoTable4;
+extern std::array<const GekkoOPInfo*, 1024> m_infoTable19;
+extern std::array<const GekkoOPInfo*, 1024> m_infoTable31;
+extern std::array<const GekkoOPInfo*, 32> m_infoTable59;
+extern std::array<const GekkoOPInfo*, 1024> m_infoTable63;
 
-extern std::array<GekkoOPInfo*, 512> m_allInstructions;
-extern size_t m_numInstructions;
+extern std::array<std::pair<const GekkoOPInfo*, GekkoOPStats>, 512> m_allInstructions;
 
-GekkoOPInfo* GetOpInfo(UGeckoInstruction inst);
+const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst);
 Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst);
 
 bool IsValidInstruction(UGeckoInstruction inst);

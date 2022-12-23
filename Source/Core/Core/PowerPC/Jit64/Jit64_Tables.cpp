@@ -489,7 +489,7 @@ void Jit64::CompileInstruction(PPCAnalyst::CodeOp& op)
 {
   (this->*s_dyna_op_table[op.inst.OPCD])(op.inst);
 
-  GekkoOPInfo* info = op.opinfo;
+  const GekkoOPInfo* info = op.opinfo;
   if (info)
   {
 #ifdef OPLOG

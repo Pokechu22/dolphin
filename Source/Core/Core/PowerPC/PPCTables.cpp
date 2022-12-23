@@ -23,17 +23,16 @@
 
 namespace PPCTables
 {
-std::array<GekkoOPInfo*, 64> m_infoTable;
-std::array<GekkoOPInfo*, 1024> m_infoTable4;
-std::array<GekkoOPInfo*, 1024> m_infoTable19;
-std::array<GekkoOPInfo*, 1024> m_infoTable31;
-std::array<GekkoOPInfo*, 32> m_infoTable59;
-std::array<GekkoOPInfo*, 1024> m_infoTable63;
+std::array<const GekkoOPInfo*, 64> m_infoTable;
+std::array<const GekkoOPInfo*, 1024> m_infoTable4;
+std::array<const GekkoOPInfo*, 1024> m_infoTable19;
+std::array<const GekkoOPInfo*, 1024> m_infoTable31;
+std::array<const GekkoOPInfo*, 32> m_infoTable59;
+std::array<const GekkoOPInfo*, 1024> m_infoTable63;
 
-std::array<GekkoOPInfo*, 512> m_allInstructions;
-size_t m_numInstructions;
+std::array<std::pair<const GekkoOPInfo*, GekkoOPStats>, 512> m_allInstructions;
 
-GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
+const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
 {
   const GekkoOPInfo* info = m_infoTable[inst.OPCD];
   if (info->type == OpType::Subtable)
@@ -102,7 +101,7 @@ Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst)
 
 bool UsesFPU(UGeckoInstruction inst)
 {
-  GekkoOPInfo* const info = GetOpInfo(inst);
+  const GekkoOPInfo* const info = GetOpInfo(inst);
 
   return (info->flags & FL_USE_FPU) != 0;
 }
@@ -131,7 +130,7 @@ bool IsValidInstruction(UGeckoInstruction inst)
 
 void CountInstruction(UGeckoInstruction inst)
 {
-  GekkoOPInfo* info = GetOpInfo(inst);
+  const GekkoOPInfo* info = GetOpInfo(inst);
   if (info)
   {
     info->runCount++;
@@ -140,6 +139,7 @@ void CountInstruction(UGeckoInstruction inst)
 
 void PrintInstructionRunCounts()
 {
+  /*
   typedef std::pair<const char*, u64> OpInfo;
   std::vector<OpInfo> temp;
   temp.reserve(m_numInstructions);
@@ -158,10 +158,12 @@ void PrintInstructionRunCounts()
 
     DEBUG_LOG_FMT(POWERPC, "{} : {}", inst.first, inst.second);
   }
+  */
 }
 
 void LogCompiledInstructions()
 {
+  /*
   static unsigned int time = 0;
 
   File::IOFile f(fmt::format("{}inst_log{}.txt", File::GetUserPath(D_LOGS_IDX), time), "w");
@@ -195,6 +197,7 @@ void LogCompiledInstructions()
 #endif
 
   ++time;
+  */
 }
 
 }  // namespace PPCTables

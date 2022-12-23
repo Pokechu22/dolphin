@@ -5,15 +5,17 @@
 
 #include <array>
 
+#include "Common/Assert.h"
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/PPCTables.h"
+#include "Core/PowerPC/PowerPC.h"
 
 namespace
 {
 struct GekkoOPTemplate
 {
   int opcode;
-  Interpreter::Instruction Inst;
+  Interpreter::Instruction fn;
   GekkoOPInfo opinfo;
 };
 }  // namespace
@@ -358,6 +360,116 @@ constexpr size_t TotalInstructionFunctionCount()
 static_assert(TotalInstructionFunctionCount() < PPCTables::m_allInstructions.size(),
               "m_allInstructions is too small");
 
+constexpr std::array<Interpreter::Instruction, 64> s_interpreter_op_table = []() consteval
+{
+  std::array<Interpreter::Instruction, 64> table{};
+  table.fill(Interpreter::unknown_instruction);
+  for (auto& tpl : s_primary_table)
+  {
+    ASSERT(table[tpl.opcode] == Interpreter::unknown_instruction);
+    table[tpl.opcode] = tpl.fn;
+  };
+  return table;
+}
+();
+constexpr std::array<Interpreter::Instruction, 1024> s_interpreter_op_table4 = []() consteval
+{
+  std::array<Interpreter::Instruction, 1024> table{};
+  table.fill(Interpreter::unknown_instruction);
+
+  for (u32 i = 0; i < 32; i++)
+  {
+    const u32 fill = i << 5;
+    for (const auto& tpl : s_table4_2)
+    {
+      const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == Interpreter::unknown_instruction);
+      table[op] = tpl.fn;
+    }
+  }
+
+  for (u32 i = 0; i < 16; i++)
+  {
+    const u32 fill = i << 6;
+    for (const auto& tpl : s_table4_3)
+    {
+      const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == Interpreter::unknown_instruction);
+      table[op] = tpl.fn;
+    }
+  }
+
+  for (const auto& tpl : s_table4)
+  {
+    const u32 op = tpl.opcode;
+    ASSERT(table[op] == Interpreter::unknown_instruction);
+    table[op] = tpl.fn;
+  }
+
+  return table;
+}
+();
+constexpr std::array<Interpreter::Instruction, 1024> s_interpreter_op_table19 = []() consteval
+{
+  std::array<Interpreter::Instruction, 1024> table{};
+  table.fill(Interpreter::unknown_instruction);
+  for (auto& tpl : s_table19)
+  {
+    ASSERT(table[tpl.opcode] == Interpreter::unknown_instruction);
+    table[tpl.opcode] = tpl.fn;
+  };
+  return table;
+}
+();
+constexpr std::array<Interpreter::Instruction, 1024> s_interpreter_op_table31 = []() consteval
+{
+  std::array<Interpreter::Instruction, 1024> table{};
+  table.fill(Interpreter::unknown_instruction);
+  for (auto& tpl : s_table31)
+  {
+    ASSERT(table[tpl.opcode] == Interpreter::unknown_instruction);
+    table[tpl.opcode] = tpl.fn;
+  };
+  return table;
+}
+();
+constexpr std::array<Interpreter::Instruction, 32> s_interpreter_op_table59 = []() consteval
+{
+  std::array<Interpreter::Instruction, 32> table{};
+  table.fill(Interpreter::unknown_instruction);
+  for (auto& tpl : s_table59)
+  {
+    ASSERT(table[tpl.opcode] == Interpreter::unknown_instruction);
+    table[tpl.opcode] = tpl.fn;
+  };
+  return table;
+}
+();
+constexpr std::array<Interpreter::Instruction, 1024> s_interpreter_op_table63 = []() consteval
+{
+  std::array<Interpreter::Instruction, 1024> table{};
+  table.fill(Interpreter::unknown_instruction);
+  for (auto& tpl : s_table63)
+  {
+    ASSERT(table[tpl.opcode] == Interpreter::unknown_instruction);
+    table[tpl.opcode] = tpl.fn;
+  };
+
+  for (u32 i = 0; i < 32; i++)
+  {
+    const u32 fill = i << 5;
+    for (const auto& tpl : s_table63_2)
+    {
+      const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == Interpreter::unknown_instruction);
+      table[op] = tpl.fn;
+    }
+  }
+
+  return table;
+}
+();
+
 void Interpreter::InitializeInstructionTables()
 {
   // once initialized, tables are read-only
@@ -366,14 +478,8 @@ void Interpreter::InitializeInstructionTables()
     return;
 
   // clear
-  m_op_table.fill(Interpreter::unknown_instruction);
   PPCTables::m_infoTable.fill(&s_unknownopinfo);
-  m_op_table59.fill(Interpreter::unknown_instruction);
   PPCTables::m_infoTable59.fill(&s_unknownopinfo);
-  m_op_table4.fill(Interpreter::unknown_instruction);
-  m_op_table19.fill(Interpreter::unknown_instruction);
-  m_op_table31.fill(Interpreter::unknown_instruction);
-  m_op_table63.fill(Interpreter::unknown_instruction);
   PPCTables::m_infoTable4.fill(&s_unknownopinfo);
   PPCTables::m_infoTable19.fill(&s_unknownopinfo);
   PPCTables::m_infoTable31.fill(&s_unknownopinfo);
@@ -381,7 +487,6 @@ void Interpreter::InitializeInstructionTables()
 
   for (auto& tpl : s_primary_table)
   {
-    m_op_table[tpl.opcode] = tpl.Inst;
     PPCTables::m_infoTable[tpl.opcode] = &tpl.opinfo;
   }
 
@@ -391,7 +496,6 @@ void Interpreter::InitializeInstructionTables()
     for (auto& tpl : s_table4_2)
     {
       int op = fill + tpl.opcode;
-      m_op_table4[op] = tpl.Inst;
       PPCTables::m_infoTable4[op] = &tpl.opinfo;
     }
   }
@@ -402,7 +506,6 @@ void Interpreter::InitializeInstructionTables()
     for (auto& tpl : s_table4_3)
     {
       int op = fill + tpl.opcode;
-      m_op_table4[op] = tpl.Inst;
       PPCTables::m_infoTable4[op] = &tpl.opinfo;
     }
   }
@@ -410,35 +513,30 @@ void Interpreter::InitializeInstructionTables()
   for (auto& tpl : s_table4)
   {
     int op = tpl.opcode;
-    m_op_table4[op] = tpl.Inst;
     PPCTables::m_infoTable4[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : s_table31)
   {
     int op = tpl.opcode;
-    m_op_table31[op] = tpl.Inst;
     PPCTables::m_infoTable31[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : s_table19)
   {
     int op = tpl.opcode;
-    m_op_table19[op] = tpl.Inst;
     PPCTables::m_infoTable19[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : s_table59)
   {
     int op = tpl.opcode;
-    m_op_table59[op] = tpl.Inst;
     PPCTables::m_infoTable59[op] = &tpl.opinfo;
   }
 
   for (auto& tpl : s_table63)
   {
     int op = tpl.opcode;
-    m_op_table63[op] = tpl.Inst;
     PPCTables::m_infoTable63[op] = &tpl.opinfo;
   }
 
@@ -448,10 +546,67 @@ void Interpreter::InitializeInstructionTables()
     for (auto& tpl : s_table63_2)
     {
       int op = fill + tpl.opcode;
-      m_op_table63[op] = tpl.Inst;
       PPCTables::m_infoTable63[op] = &tpl.opinfo;
     }
   }
 
   initialized = true;
+}
+
+namespace PPCTables
+{
+Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst)
+{
+  const GekkoOPInfo* info = m_infoTable[inst.OPCD];
+  if (info->type == OpType::Subtable)
+  {
+    switch (inst.OPCD)
+    {
+    case 4:
+      return s_interpreter_op_table4[inst.SUBOP10];
+    case 19:
+      return s_interpreter_op_table19[inst.SUBOP10];
+    case 31:
+      return s_interpreter_op_table31[inst.SUBOP10];
+    case 59:
+      return s_interpreter_op_table59[inst.SUBOP5];
+    case 63:
+      return s_interpreter_op_table63[inst.SUBOP10];
+    default:
+      ASSERT_MSG(POWERPC, 0, "GetInterpreterOp - invalid subtable op {:08x} @ {:08x}", inst.hex,
+                 PC);
+      return nullptr;
+    }
+  }
+  else
+  {
+    if (info->type == OpType::Invalid)
+    {
+      ASSERT_MSG(POWERPC, 0, "GetInterpreterOp - invalid op {:08x} @ {:08x}", inst.hex, PC);
+      return nullptr;
+    }
+    return s_interpreter_op_table[inst.OPCD];
+  }
+}
+}  // namespace PPCTables
+
+void Interpreter::RunTable4(UGeckoInstruction inst)
+{
+  s_interpreter_op_table4[inst.SUBOP10](inst);
+}
+void Interpreter::RunTable19(UGeckoInstruction inst)
+{
+  s_interpreter_op_table4[inst.SUBOP10](inst);
+}
+void Interpreter::RunTable31(UGeckoInstruction inst)
+{
+  s_interpreter_op_table4[inst.SUBOP10](inst);
+}
+void Interpreter::RunTable59(UGeckoInstruction inst)
+{
+  s_interpreter_op_table4[inst.SUBOP5](inst);
+}
+void Interpreter::RunTable63(UGeckoInstruction inst)
+{
+  s_interpreter_op_table4[inst.SUBOP10](inst);
 }

@@ -65,40 +65,6 @@ const GekkoOPInfo* GetOpInfo(UGeckoInstruction inst)
   }
 }
 
-Interpreter::Instruction GetInterpreterOp(UGeckoInstruction inst)
-{
-  const GekkoOPInfo* info = m_infoTable[inst.OPCD];
-  if (info->type == OpType::Subtable)
-  {
-    switch (inst.OPCD)
-    {
-    case 4:
-      return Interpreter::m_op_table4[inst.SUBOP10];
-    case 19:
-      return Interpreter::m_op_table19[inst.SUBOP10];
-    case 31:
-      return Interpreter::m_op_table31[inst.SUBOP10];
-    case 59:
-      return Interpreter::m_op_table59[inst.SUBOP5];
-    case 63:
-      return Interpreter::m_op_table63[inst.SUBOP10];
-    default:
-      ASSERT_MSG(POWERPC, 0, "GetInterpreterOp - invalid subtable op {:08x} @ {:08x}", inst.hex,
-                 PC);
-      return nullptr;
-    }
-  }
-  else
-  {
-    if (info->type == OpType::Invalid)
-    {
-      ASSERT_MSG(POWERPC, 0, "GetInterpreterOp - invalid op {:08x} @ {:08x}", inst.hex, PC);
-      return nullptr;
-    }
-    return Interpreter::m_op_table[inst.OPCD];
-  }
-}
-
 bool UsesFPU(UGeckoInstruction inst)
 {
   const GekkoOPInfo* const info = GetOpInfo(inst);

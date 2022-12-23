@@ -33,14 +33,6 @@ u32 last_pc;
 
 bool Interpreter::m_end_block;
 
-// function tables
-std::array<Interpreter::Instruction, 64> Interpreter::m_op_table;
-std::array<Interpreter::Instruction, 1024> Interpreter::m_op_table4;
-std::array<Interpreter::Instruction, 1024> Interpreter::m_op_table19;
-std::array<Interpreter::Instruction, 1024> Interpreter::m_op_table31;
-std::array<Interpreter::Instruction, 32> Interpreter::m_op_table59;
-std::array<Interpreter::Instruction, 1024> Interpreter::m_op_table63;
-
 namespace
 {
 // Determines whether or not the given instruction is one where its execution
@@ -76,27 +68,6 @@ void UpdatePC()
   PC = NPC;
 }
 }  // Anonymous namespace
-
-void Interpreter::RunTable4(UGeckoInstruction inst)
-{
-  m_op_table4[inst.SUBOP10](inst);
-}
-void Interpreter::RunTable19(UGeckoInstruction inst)
-{
-  m_op_table19[inst.SUBOP10](inst);
-}
-void Interpreter::RunTable31(UGeckoInstruction inst)
-{
-  m_op_table31[inst.SUBOP10](inst);
-}
-void Interpreter::RunTable59(UGeckoInstruction inst)
-{
-  m_op_table59[inst.SUBOP5](inst);
-}
-void Interpreter::RunTable63(UGeckoInstruction inst)
-{
-  m_op_table63[inst.SUBOP10](inst);
-}
 
 void Interpreter::Init()
 {
@@ -172,7 +143,7 @@ int Interpreter::SingleStepInner()
     }
     else if (MSR.FP)
     {
-      m_op_table[m_prev_inst.OPCD](m_prev_inst);
+      PPCTables::GetInterpreterOp(m_prev_inst)(m_prev_inst);
       if ((PowerPC::ppcState.Exceptions & EXCEPTION_DSI) != 0)
       {
         CheckExceptions();
@@ -188,7 +159,7 @@ int Interpreter::SingleStepInner()
       }
       else
       {
-        m_op_table[m_prev_inst.OPCD](m_prev_inst);
+        PPCTables::GetInterpreterOp(m_prev_inst)(m_prev_inst);
         if ((PowerPC::ppcState.Exceptions & EXCEPTION_DSI) != 0)
         {
           CheckExceptions();

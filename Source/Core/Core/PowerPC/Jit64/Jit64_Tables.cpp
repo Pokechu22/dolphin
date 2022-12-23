@@ -5,6 +5,7 @@
 
 #include <array>
 
+#include "Common/Assert.h"
 #include "Core/PowerPC/Gekko.h"
 
 namespace
@@ -334,38 +335,25 @@ constexpr std::array<GekkoOPTemplate, 10> s_table63_2{{
     {31, &Jit64::fmaddXX},   // fnmaddx
 }};
 
-// TODO: This can be replaced with:
-//
-//       table.fill(&Jit64::FallbackToInterpreter);
-//
-//       whenever we end up migrating to C++20. Prior to C++20,
-//       std::array's fill() function is, unfortunately, not constexpr.
-//       Ditto for <algorithm>'s std::fill. Thus, this function exists
-//       to bridge the gap.
-template <size_t N>
-constexpr void FillWithFallbacks(std::array<Jit64::Instruction, N>& table)
+constexpr std::array<Jit64::Instruction, 64> s_dyna_op_table = []() consteval
 {
-  for (auto& entry : table)
-  {
-    entry = &Jit64::FallBackToInterpreter;
-  }
-}
-
-constexpr std::array<Jit64::Instruction, 64> s_dyna_op_table = [] {
   std::array<Jit64::Instruction, 64> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (auto& tpl : s_primary_table)
   {
+    ASSERT(table[tpl.opcode] == &Jit64::FallBackToInterpreter);
     table[tpl.opcode] = tpl.fn;
   }
 
   return table;
-}();
+}
+();
 
-constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table4 = [] {
+constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table4 = []() consteval
+{
   std::array<Jit64::Instruction, 1024> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (u32 i = 0; i < 32; i++)
   {
@@ -373,6 +361,7 @@ constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table4 = [] {
     for (const auto& tpl : s_table4_2)
     {
       const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == &Jit64::FallBackToInterpreter);
       table[op] = tpl.fn;
     }
   }
@@ -383,6 +372,7 @@ constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table4 = [] {
     for (const auto& tpl : s_table4_3)
     {
       const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == &Jit64::FallBackToInterpreter);
       table[op] = tpl.fn;
     }
   }
@@ -390,59 +380,68 @@ constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table4 = [] {
   for (const auto& tpl : s_table4)
   {
     const u32 op = tpl.opcode;
+    ASSERT(table[op] == &Jit64::FallBackToInterpreter);
     table[op] = tpl.fn;
   }
 
   return table;
-}();
+}
+();
 
-constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table19 = [] {
+constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table19 = []() consteval
+{
   std::array<Jit64::Instruction, 1024> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (const auto& tpl : s_table19)
   {
-    const u32 op = tpl.opcode;
-    table[op] = tpl.fn;
+    ASSERT(table[tpl.opcode] == &Jit64::FallBackToInterpreter);
+    table[tpl.opcode] = tpl.fn;
   }
 
   return table;
-}();
+}
+();
 
-constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table31 = [] {
+constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table31 = []() consteval
+{
   std::array<Jit64::Instruction, 1024> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (const auto& tpl : s_table31)
   {
-    const u32 op = tpl.opcode;
-    table[op] = tpl.fn;
+    ASSERT(table[tpl.opcode] == &Jit64::FallBackToInterpreter);
+    table[tpl.opcode] = tpl.fn;
   }
 
   return table;
-}();
+}
+();
 
-constexpr std::array<Jit64::Instruction, 32> s_dyna_op_table59 = [] {
+constexpr std::array<Jit64::Instruction, 32> s_dyna_op_table59 = []() consteval
+{
   std::array<Jit64::Instruction, 32> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (const auto& tpl : s_table59)
   {
-    const u32 op = tpl.opcode;
-    table[op] = tpl.fn;
+    ASSERT(table[tpl.opcode] == &Jit64::FallBackToInterpreter);
+    table[tpl.opcode] = tpl.fn;
   }
 
   return table;
-}();
+}
+();
 
-constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table63 = [] {
+constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table63 = []() consteval
+{
   std::array<Jit64::Instruction, 1024> table{};
-  FillWithFallbacks(table);
+  table.fill(&Jit64::FallBackToInterpreter);
 
   for (const auto& tpl : s_table63)
   {
-    const u32 op = tpl.opcode;
-    table[op] = tpl.fn;
+    ASSERT(table[tpl.opcode] == &Jit64::FallBackToInterpreter);
+    table[tpl.opcode] = tpl.fn;
   }
 
   for (u32 i = 0; i < 32; i++)
@@ -451,12 +450,14 @@ constexpr std::array<Jit64::Instruction, 1024> s_dyna_op_table63 = [] {
     for (const auto& tpl : s_table63_2)
     {
       const u32 op = fill + tpl.opcode;
+      ASSERT(table[op] == &Jit64::FallBackToInterpreter);
       table[op] = tpl.fn;
     }
   }
 
   return table;
-}();
+}
+();
 
 }  // Anonymous namespace
 

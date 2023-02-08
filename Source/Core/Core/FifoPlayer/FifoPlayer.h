@@ -77,6 +77,7 @@ struct FramePart
 struct AnalyzedFrameInfo
 {
   std::vector<FramePart> parts;
+  std::vector<u32> genmode_commands;
   Common::EnumMap<u32, FramePartType::EFBCopy> part_type_counts;
 
   void AddPart(FramePartType type, u32 start, u32 end, const CPState& cpmem)
@@ -124,6 +125,8 @@ public:
   u32 GetObjectRangeEnd() const { return m_ObjectRangeEnd; }
   void SetObjectRangeEnd(u32 end) { m_ObjectRangeEnd = end; }
 
+  void SetMaxTevStages(u8 max) { m_max_tev_stages = max; }
+
   // Callbacks
   void SetFileLoadedCallback(CallbackFunc callback);
   void SetFrameWrittenCallback(CallbackFunc callback) { m_FrameWrittenCb = std::move(callback); }
@@ -138,7 +141,8 @@ private:
   CPU::State AdvanceFrame();
 
   void WriteFrame(const FifoFrameInfo& frame, const AnalyzedFrameInfo& info);
-  void WriteFramePart(const FramePart& part, u32* next_mem_update, const FifoFrameInfo& frame);
+  void WriteFramePart(const FramePart& part, u32* next_mem_update, const FifoFrameInfo& frame,
+                      const AnalyzedFrameInfo& info, u32* genmode_command);
 
   void WriteAllMemoryUpdates();
   void WriteMemory(const MemoryUpdate& memUpdate);
@@ -187,6 +191,8 @@ private:
   u64 m_CyclesPerFrame = 0;
   u32 m_ElapsedCycles = 0;
   u32 m_FrameFifoSize = 0;
+
+  u8 m_max_tev_stages = 16;
 
   CallbackFunc m_FileLoadedCb = nullptr;
   CallbackFunc m_FrameWrittenCb = nullptr;

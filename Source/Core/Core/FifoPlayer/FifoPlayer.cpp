@@ -64,11 +64,15 @@ public:
   bool m_start_of_primitives = false;
   bool m_end_of_primitives = false;
   bool m_efb_copy = false;
+  bool m_genmode_command = false;
+
+private:
   // Internal state, copied to above in OnCommand
   bool m_was_primitive = false;
   bool m_is_primitive = false;
   bool m_is_copy = false;
   bool m_is_nop = false;
+  bool m_is_genmode = false;
   CPState m_cpmem;
 };
 
@@ -110,6 +114,11 @@ void FifoPlaybackAnalyzer::AnalyzeFrames(FifoDataFile* file,
         part_start = offset;
       }
 
+      if (analyzer.m_genmode_command)
+      {
+        analyzed.genmode_commands.push_back(offset);
+      }
+
       offset += cmd_size;
 
       if (analyzer.m_efb_copy)
@@ -130,6 +139,8 @@ void FifoPlaybackAnalyzer::OnBP(u8 command, u32 value)
 {
   if (command == BPMEM_TRIGGER_EFB_COPY)
     m_is_copy = true;
+  if (command == BPMEM_GENMODE)
+    m_is_genmode = true;
 }
 
 void FifoPlaybackAnalyzer::OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat,
@@ -149,6 +160,7 @@ void FifoPlaybackAnalyzer::OnCommand(const u8* data, u32 size)
   m_start_of_primitives = false;
   m_end_of_primitives = false;
   m_efb_copy = false;
+  m_genmode_command = false;
 
   if (!m_is_nop)
   {
@@ -159,11 +171,14 @@ void FifoPlaybackAnalyzer::OnCommand(const u8* data, u32 size)
     else if (m_is_copy)
       m_efb_copy = true;
 
+    if (m_is_genmode)
+      m_genmode_command = true;
     m_was_primitive = m_is_primitive;
   }
   m_is_primitive = false;
   m_is_copy = false;
   m_is_nop = false;
+  m_is_genmode = false;
 }
 }  // namespace
 
@@ -411,6 +426,7 @@ void FifoPlayer::WriteFrame(const FifoFrameInfo& frame, const AnalyzedFrameInfo&
   m_FrameFifoSize = static_cast<u32>(frame.fifoData.size());
 
   u32 memory_update = 0;
+  u32 genmode_command = 0;
   u32 object_num = 0;
 
   // Skip all memory updates if early memory updates are enabled, as we already wrote them
@@ -436,7 +452,7 @@ void FifoPlayer::WriteFrame(const FifoFrameInfo& frame, const AnalyzedFrameInfo&
     }
 
     if (show_part)
-      WriteFramePart(part, &memory_update, frame);
+      WriteFramePart(part, &memory_update, frame, info, &genmode_command);
   }
 
   FlushWGP();
@@ -444,19 +460,41 @@ void FifoPlayer::WriteFrame(const FifoFrameInfo& frame, const AnalyzedFrameInfo&
 }
 
 void FifoPlayer::WriteFramePart(const FramePart& part, u32* next_mem_update,
-                                const FifoFrameInfo& frame)
+                                const FifoFrameInfo& frame, const AnalyzedFrameInfo& info,
+                                u32* next_genmode_command)
 {
   const u8* const data = frame.fifoData.data();
 
   u32 data_start = part.m_start;
   const u32 data_end = part.m_end;
 
-  while (*next_mem_update < frame.memoryUpdates.size() && data_start < data_end)
+  while (data_start < data_end)
   {
-    const MemoryUpdate& memUpdate = frame.memoryUpdates[*next_mem_update];
+    // Could also use short-circuiting && here
+    bool check_memupdate = *next_mem_update < frame.memoryUpdates.size();
+    if (check_memupdate)
+      check_memupdate &= frame.memoryUpdates[*next_mem_update].fifoPosition < data_end;
+    bool check_genmode = *next_genmode_command < info.genmode_commands.size();
+    if (check_genmode)
+      check_genmode &= info.genmode_commands[*next_genmode_command] < data_end;
 
-    if (memUpdate.fifoPosition < data_end)
+    if (check_memupdate && check_genmode)
     {
+      // Disable whichever one comes later
+      if (frame.memoryUpdates[*next_mem_update].fifoPosition >
+          info.genmode_commands[*next_genmode_command])
+      {
+        check_memupdate = false;
+      }
+      else
+      {
+        check_genmode = false;
+      }
+    }
+
+    if (check_memupdate)
+    {
+      const MemoryUpdate& memUpdate = frame.memoryUpdates[*next_mem_update];
       if (data_start < memUpdate.fifoPosition)
       {
         WriteFifo(data, data_start, memUpdate.fifoPosition);
@@ -467,15 +505,34 @@ void FifoPlayer::WriteFramePart(const FramePart& part, u32* next_mem_update,
 
       ++*next_mem_update;
     }
+    else if (check_genmode)
+    {
+      const u32 genmode_start = info.genmode_commands[*next_genmode_command];
+      if (data_start < genmode_start)
+      {
+        WriteFifo(data, data_start, genmode_start);
+      }
+      const u32 genmode_end = genmode_start + 5;
+      ASSERT(genmode_end <= data_end);
+      // TODO: this doesn't handle the (unlikely) case of a memory update in the middle of a genmode
+      // command, does it?
+      std::array<u8, 5> new_genmode_command{data[genmode_start + 0], data[genmode_start + 1],
+                                            data[genmode_start + 2], data[genmode_start + 3],
+                                            data[genmode_start + 4]};
+      // numtevstages is bits 10-13 -> bits 2-5 of datanew_genmode_command[3]
+      u8 num_tev_states = std::min((new_genmode_command[3] >> 2) & 0xf, m_max_tev_stages - 1);
+      new_genmode_command[3] = (new_genmode_command[3] & 0b11000011) | (num_tev_states & 0xf) << 2;
+      WriteFifo(new_genmode_command.data(), 0, 5);
+      data_start = genmode_end;
+
+      ++*next_genmode_command;
+    }
     else
     {
       WriteFifo(data, data_start, data_end);
       data_start = data_end;
     }
   }
-
-  if (data_start < data_end)
-    WriteFifo(data, data_start, data_end);
 }
 
 void FifoPlayer::WriteAllMemoryUpdates()

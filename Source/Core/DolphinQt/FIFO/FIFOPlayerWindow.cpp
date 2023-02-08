@@ -116,16 +116,27 @@ void FIFOPlayerWindow::CreateWidgets()
   frame_range_layout->addWidget(m_frame_range_to);
   frame_range_group->setLayout(frame_range_layout);
 
+  // Max TEV stages
+  auto* tev_stages_group = new QGroupBox(tr("Max TEV stages"));
+  auto* tev_stages_layout = new QHBoxLayout;
+  m_max_tev_stages = new QSpinBox;
+  m_max_tev_stages->setMinimum(1);
+  m_max_tev_stages->setMaximum(16);
+  m_max_tev_stages->setValue(16);
+  tev_stages_layout->addWidget(m_max_tev_stages);
+  tev_stages_group->setLayout(tev_stages_layout);
+
   // Playback Options
   auto* playback_group = new QGroupBox(tr("Playback Options"));
   auto* playback_layout = new QGridLayout;
   m_early_memory_updates = new ToolTipCheckBox(tr("Early Memory Updates"));
   m_loop = new ToolTipCheckBox(tr("Loop"));
 
-  playback_layout->addWidget(object_range_group, 0, 0);
-  playback_layout->addWidget(frame_range_group, 0, 1);
-  playback_layout->addWidget(m_early_memory_updates, 1, 0);
-  playback_layout->addWidget(m_loop, 1, 1);
+  playback_layout->addWidget(object_range_group, 0, 0, 1, 4);
+  playback_layout->addWidget(frame_range_group, 0, 4, 1, 4);
+  playback_layout->addWidget(tev_stages_group, 0, 8, 1, 2);
+  playback_layout->addWidget(m_early_memory_updates, 1, 0, 1, 5);
+  playback_layout->addWidget(m_loop, 1, 5, 1, 5);
   playback_group->setLayout(playback_layout);
 
   // Recording Options
@@ -195,6 +206,9 @@ void FIFOPlayerWindow::ConnectWidgets()
   connect(m_object_range_from, qOverload<int>(&QSpinBox::valueChanged), this,
           &FIFOPlayerWindow::OnLimitsChanged);
   connect(m_object_range_to, qOverload<int>(&QSpinBox::valueChanged), this,
+          &FIFOPlayerWindow::OnLimitsChanged);
+
+  connect(m_max_tev_stages, qOverload<int>(&QSpinBox::valueChanged), this,
           &FIFOPlayerWindow::OnLimitsChanged);
 }
 
@@ -344,6 +358,8 @@ void FIFOPlayerWindow::OnFIFOLoaded()
   m_frame_range_to->setValue(frame_count - 1);
   m_object_range_to->setValue(object_count - 1);
 
+  m_max_tev_stages->setValue(16);
+
   UpdateInfo();
   UpdateLimits();
   UpdateControls();
@@ -366,6 +382,7 @@ void FIFOPlayerWindow::OnLimitsChanged()
   player.SetFrameRangeEnd(m_frame_range_to->value());
   player.SetObjectRangeStart(m_object_range_from->value());
   player.SetObjectRangeEnd(m_object_range_to->value());
+  player.SetMaxTevStages(m_max_tev_stages->value());
   UpdateLimits();
 }
 
